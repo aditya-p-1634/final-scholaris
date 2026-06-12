@@ -9,38 +9,227 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SessionsRouteImport } from './routes/sessions'
+import { Route as RoiRouteImport } from './routes/roi'
+import { Route as RiskRouteImport } from './routes/risk'
+import { Route as MissionsRouteImport } from './routes/missions'
+import { Route as MemoryRouteImport } from './routes/memory'
+import { Route as ConceptsRouteImport } from './routes/concepts'
+import { Route as CoachRouteImport } from './routes/coach'
+import { Route as BattlefieldRouteImport } from './routes/battlefield'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SubjectsIdRouteImport } from './routes/subjects.$id'
+import { Route as ConceptsIdRouteImport } from './routes/concepts.$id'
 
+const SessionsRoute = SessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoiRoute = RoiRouteImport.update({
+  id: '/roi',
+  path: '/roi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RiskRoute = RiskRouteImport.update({
+  id: '/risk',
+  path: '/risk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MissionsRoute = MissionsRouteImport.update({
+  id: '/missions',
+  path: '/missions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MemoryRoute = MemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConceptsRoute = ConceptsRouteImport.update({
+  id: '/concepts',
+  path: '/concepts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoachRoute = CoachRouteImport.update({
+  id: '/coach',
+  path: '/coach',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BattlefieldRoute = BattlefieldRouteImport.update({
+  id: '/battlefield',
+  path: '/battlefield',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubjectsIdRoute = SubjectsIdRouteImport.update({
+  id: '/subjects/$id',
+  path: '/subjects/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConceptsIdRoute = ConceptsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ConceptsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/battlefield': typeof BattlefieldRoute
+  '/coach': typeof CoachRoute
+  '/concepts': typeof ConceptsRouteWithChildren
+  '/memory': typeof MemoryRoute
+  '/missions': typeof MissionsRoute
+  '/risk': typeof RiskRoute
+  '/roi': typeof RoiRoute
+  '/sessions': typeof SessionsRoute
+  '/concepts/$id': typeof ConceptsIdRoute
+  '/subjects/$id': typeof SubjectsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/battlefield': typeof BattlefieldRoute
+  '/coach': typeof CoachRoute
+  '/concepts': typeof ConceptsRouteWithChildren
+  '/memory': typeof MemoryRoute
+  '/missions': typeof MissionsRoute
+  '/risk': typeof RiskRoute
+  '/roi': typeof RoiRoute
+  '/sessions': typeof SessionsRoute
+  '/concepts/$id': typeof ConceptsIdRoute
+  '/subjects/$id': typeof SubjectsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/battlefield': typeof BattlefieldRoute
+  '/coach': typeof CoachRoute
+  '/concepts': typeof ConceptsRouteWithChildren
+  '/memory': typeof MemoryRoute
+  '/missions': typeof MissionsRoute
+  '/risk': typeof RiskRoute
+  '/roi': typeof RoiRoute
+  '/sessions': typeof SessionsRoute
+  '/concepts/$id': typeof ConceptsIdRoute
+  '/subjects/$id': typeof SubjectsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/battlefield'
+    | '/coach'
+    | '/concepts'
+    | '/memory'
+    | '/missions'
+    | '/risk'
+    | '/roi'
+    | '/sessions'
+    | '/concepts/$id'
+    | '/subjects/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/battlefield'
+    | '/coach'
+    | '/concepts'
+    | '/memory'
+    | '/missions'
+    | '/risk'
+    | '/roi'
+    | '/sessions'
+    | '/concepts/$id'
+    | '/subjects/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/battlefield'
+    | '/coach'
+    | '/concepts'
+    | '/memory'
+    | '/missions'
+    | '/risk'
+    | '/roi'
+    | '/sessions'
+    | '/concepts/$id'
+    | '/subjects/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BattlefieldRoute: typeof BattlefieldRoute
+  CoachRoute: typeof CoachRoute
+  ConceptsRoute: typeof ConceptsRouteWithChildren
+  MemoryRoute: typeof MemoryRoute
+  MissionsRoute: typeof MissionsRoute
+  RiskRoute: typeof RiskRoute
+  RoiRoute: typeof RoiRoute
+  SessionsRoute: typeof SessionsRoute
+  SubjectsIdRoute: typeof SubjectsIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sessions': {
+      id: '/sessions'
+      path: '/sessions'
+      fullPath: '/sessions'
+      preLoaderRoute: typeof SessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roi': {
+      id: '/roi'
+      path: '/roi'
+      fullPath: '/roi'
+      preLoaderRoute: typeof RoiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/risk': {
+      id: '/risk'
+      path: '/risk'
+      fullPath: '/risk'
+      preLoaderRoute: typeof RiskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/missions': {
+      id: '/missions'
+      path: '/missions'
+      fullPath: '/missions'
+      preLoaderRoute: typeof MissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/memory': {
+      id: '/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof MemoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/concepts': {
+      id: '/concepts'
+      path: '/concepts'
+      fullPath: '/concepts'
+      preLoaderRoute: typeof ConceptsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coach': {
+      id: '/coach'
+      path: '/coach'
+      fullPath: '/coach'
+      preLoaderRoute: typeof CoachRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/battlefield': {
+      id: '/battlefield'
+      path: '/battlefield'
+      fullPath: '/battlefield'
+      preLoaderRoute: typeof BattlefieldRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +237,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subjects/$id': {
+      id: '/subjects/$id'
+      path: '/subjects/$id'
+      fullPath: '/subjects/$id'
+      preLoaderRoute: typeof SubjectsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/concepts/$id': {
+      id: '/concepts/$id'
+      path: '/$id'
+      fullPath: '/concepts/$id'
+      preLoaderRoute: typeof ConceptsIdRouteImport
+      parentRoute: typeof ConceptsRoute
+    }
   }
 }
 
+interface ConceptsRouteChildren {
+  ConceptsIdRoute: typeof ConceptsIdRoute
+}
+
+const ConceptsRouteChildren: ConceptsRouteChildren = {
+  ConceptsIdRoute: ConceptsIdRoute,
+}
+
+const ConceptsRouteWithChildren = ConceptsRoute._addFileChildren(
+  ConceptsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BattlefieldRoute: BattlefieldRoute,
+  CoachRoute: CoachRoute,
+  ConceptsRoute: ConceptsRouteWithChildren,
+  MemoryRoute: MemoryRoute,
+  MissionsRoute: MissionsRoute,
+  RiskRoute: RiskRoute,
+  RoiRoute: RoiRoute,
+  SessionsRoute: SessionsRoute,
+  SubjectsIdRoute: SubjectsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
