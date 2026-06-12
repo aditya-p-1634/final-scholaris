@@ -2,37 +2,35 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Brain, AlertTriangle } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from "recharts";
 import { PageHeader, Panel, StatCard, MetricBar } from "@/components/widgets";
-import { concepts, subjects } from "@/lib/mock-data";
+import { useIntelligence } from "@/lib/intelligence";
 
 export const Route = createFileRoute("/memory")({
   head: () => ({ meta: [{ title: "Memory Dashboard — Scholaris" }] }),
   component: MemoryDashboard,
 });
 
-const memoryOverTime = Array.from({ length: 14 }, (_, i) => ({
-  day: `D${i + 1}`, memory: 55 + Math.round(Math.sin(i / 2) * 6 + i * 0.8),
-}));
-
 function MemoryDashboard() {
+  const { concepts, subjects, academicStatus, masteryTrend } = useIntelligence();
   const decaying = concepts.filter((c) => c.memoryStrength < 50).sort((a, b) => a.memoryStrength - b.memoryStrength);
   const subjectMemory = subjects.map((s) => ({ name: s.code, memory: s.memory }));
+  const forgotten = concepts.filter((c) => c.status === "forgotten").length;
 
   return (
     <div>
       <PageHeader eyebrow="Intelligence" title="Memory Dashboard" description="Track knowledge retention and forgetting curves across every concept." />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Avg memory" value={61} suffix="/100" trend={1.8} icon={Brain} tone="info" />
+        <StatCard label="Avg memory" value={academicStatus.overallMemory} suffix="/100" icon={Brain} tone="info" />
         <StatCard label="Decay alerts" value={decaying.length} icon={AlertTriangle} tone="warning" />
-        <StatCard label="Forgotten concepts" value={concepts.filter((c) => c.status === "forgotten").length} tone="danger" />
-        <StatCard label="Recovery rate" value="84" suffix="%" trend={3.4} tone="success" />
+        <StatCard label="Forgotten concepts" value={forgotten} tone="danger" />
+        <StatCard label="Mastered concepts" value={academicStatus.masteredConcepts} tone="success" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
-        <Panel title="Aggregate memory trend" className="lg:col-span-2">
+        <Panel title="Aggregate memory trend" description="7-day rolling memory across all concepts" className="lg:col-span-2">
           <div className="h-64 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={memoryOverTime} margin={{ top: 10, right: 8, left: -16 }}>
+              <AreaChart data={masteryTrend} margin={{ top: 10, right: 8, left: -16 }}>
                 <defs>
                   <linearGradient id="gmem" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="oklch(0.72 0.14 230)" stopOpacity={0.5} />
@@ -65,20 +63,24 @@ function MemoryDashboard() {
       </div>
 
       <Panel title="Concepts crossing decay threshold" description="Schedule recovery before memory loss compounds">
-        <div className="space-y-3">
-          {decaying.map((c) => (
-            <div key={c.id} className="flex items-center gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-sm font-medium truncate">{c.name}</span>
-                  <span className="text-xs font-mono text-muted-foreground">{c.memoryStrength}/100</span>
+        {decaying.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">No concepts below the decay threshold. Memory is healthy.</div>
+        ) : (
+          <div className="space-y-3">
+            {decaying.map((c) => (
+              <div key={c.id} className="flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between mb-1.5">
+                    <span className="text-sm font-medium truncate">{c.name}</span>
+                    <span className="text-xs font-mono text-muted-foreground">{c.memoryStrength}/100</span>
+                  </div>
+                  <MetricBar value={c.memoryStrength} tone={c.memoryStrength < 25 ? "danger" : "warning"} />
+                  <div className="text-[11px] text-muted-foreground mt-1">{c.subjectName} · last reviewed {c.lastReviewed}</div>
                 </div>
-                <MetricBar value={c.memoryStrength} tone={c.memoryStrength < 25 ? "danger" : "warning"} />
-                <div className="text-[11px] text-muted-foreground mt-1">{c.subjectName} · last reviewed {c.lastReviewed}</div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Panel>
     </div>
   );

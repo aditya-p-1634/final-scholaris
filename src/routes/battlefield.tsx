@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Swords, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { Swords, TrendingUp, TrendingDown } from "lucide-react";
 import { PageHeader, Panel, StatusDot, MetricBar } from "@/components/widgets";
-import { subjects } from "@/lib/mock-data";
+import { useIntelligence } from "@/lib/intelligence";
 
 export const Route = createFileRoute("/battlefield")({
   head: () => ({
@@ -19,6 +19,9 @@ const statusTone: Record<string, "success" | "info" | "warning" | "danger"> = {
 };
 
 function Battlefield() {
+  const { subjects } = useIntelligence();
+  const ranked = [...subjects].sort((a, b) => a.rank - b.rank);
+
   return (
     <div>
       <PageHeader
@@ -28,7 +31,7 @@ function Battlefield() {
       />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {subjects.map((s, i) => (
+        {ranked.map((s, i) => (
           <motion.div
             key={s.id}
             initial={{ opacity: 0, y: 12 }}
@@ -88,7 +91,7 @@ function Battlefield() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {subjects.map((s) => (
+              {ranked.map((s) => (
                 <tr key={s.id} className="hover:bg-accent/20">
                   <td className="px-5 py-3 font-mono text-muted-foreground">{s.rank}</td>
                   <td className="py-3">

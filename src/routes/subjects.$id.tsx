@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft, Activity, Brain, TrendingUp, ShieldAlert, Calendar, Clock,
   Sparkles, Target, AlertTriangle, GitBranch, ChevronRight, Layers,
@@ -8,19 +8,17 @@ import {
   LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
 } from "recharts";
 import { PageHeader, Panel, StatCard, StatusDot, MetricBar } from "@/components/widgets";
-import { subjects, concepts, missions } from "@/lib/mock-data";
+import {
+  useIntelligence, useIntelligenceActions, useIntelligenceStore, computeSubjectReadiness,
+} from "@/lib/intelligence";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/subjects/$id")({
-  loader: ({ params }) => {
-    const subject = subjects.find((s) => s.id === params.id);
-    if (!subject) throw notFound();
-    return { subject };
-  },
-  head: ({ loaderData }) => ({
+  loader: ({ params }) => ({ id: params.id }),
+  head: () => ({
     meta: [
-      { title: `${loaderData?.subject.name ?? "Subject"} — Subject Intelligence` },
-      { name: "description", content: `Complete intelligence profile for ${loaderData?.subject.name}.` },
+      { title: `Subject Intelligence — Scholaris` },
+      { name: "description", content: `Complete intelligence profile for this subject.` },
     ],
   }),
   component: SubjectIntelligence,
@@ -33,16 +31,23 @@ export const Route = createFileRoute("/subjects/$id")({
 });
 
 function SubjectIntelligence() {
-  const { subject: s } = Route.useLoaderData();
+  const { id } = Route.useLoaderData();
+  const { subjects, concepts, missions, recommendations } = useIntelligence();
+  const { runMission } = useIntelligenceActions();
+  const navigate = useNavigate();
+
+  const s = subjects.find((x) => x.id === id);
+  if (!s) throw notFound();
+
   const subjectConcepts = concepts.filter((c) => c.subjectId === s.id);
   const subjectMissions = missions.filter((m) => m.subjectId === s.id);
+  const subjectRecs = recommendations.filter((r) => r.subjectId === s.id);
 
-  // Trend series — deterministic shape from current metrics
   const trend = Array.from({ length: 8 }).map((_, i) => {
     const t = i / 7;
     return {
       week: `W${i + 1}`,
-      mastery: Math.round(s.mastery - (1 - t) * (s.trend * 4 + 6)),
+      mastery: Math.round(s.mastery - (1 - t) * (Math.abs(s.trend) * 2 + 6)),
       memory: Math.round(s.memory - (1 - t) * 8),
       roi: Math.round(s.roi - (1 - t) * 5),
       risk: Math.round(s.risk + (1 - t) * (s.trend < 0 ? -10 : 4)),
@@ -54,11 +59,10 @@ function SubjectIntelligence() {
     { metric: "Memory", value: s.memory },
     { metric: "ROI", value: s.roi },
     { metric: "Stability", value: 100 - s.risk },
-    { metric: "Coverage", value: Math.round(((s.concepts - s.weakConcepts) / s.concepts) * 100) },
+    { metric: "Coverage", value: subjectConcepts.length ? Math.round(((subjectConcepts.length - s.weakConcepts) / subjectConcepts.length) * 100) : 0 },
     { metric: "Engagement", value: Math.min(100, s.hoursThisWeek * 10) },
   ];
 
-  // Topic breakdown derived from concept list
   const topicMap = new Map<string, { topic: string; mastery: number; count: number }>();
   subjectConcepts.forEach((c) => {
     const t = topicMap.get(c.topic) ?? { topic: c.topic, mastery: 0, count: 0 };
@@ -74,7 +78,6 @@ function SubjectIntelligence() {
   const developingTopics = topics.filter((t) => t.mastery >= 45 && t.mastery < 70);
   const weakTopics = topics.filter((t) => t.mastery < 45);
 
-  // Concept distribution
   const dist = {
     strong: subjectConcepts.filter((c) => c.status === "mastered" || c.status === "strong").length,
     developing: subjectConcepts.filter((c) => c.status === "developing").length,
@@ -82,22 +85,24 @@ function SubjectIntelligence() {
     forgotten: subjectConcepts.filter((c) => c.status === "forgotten").length,
   };
 
-  // Bottlenecks: high importance, low mastery
   const bottlenecks = [...subjectConcepts]
     .sort((a, b) => b.importance * (100 - b.mastery) - a.importance * (100 - a.mastery))
     .slice(0, 4);
 
-  // Critical foundation: high importance + high mastery (load-bearing)
   const foundation = [...subjectConcepts]
     .filter((c) => c.importance >= 8)
     .sort((a, b) => b.importance - a.importance)
     .slice(0, 4);
 
-  const readiness = Math.max(0, Math.min(100, Math.round(s.mastery * 0.55 + s.memory * 0.35 - s.risk * 0.2 + 12)));
+  const readiness = computeSubjectReadiness(useIntelligenceStore.getState(), s.id);
   const predictedLow = Math.max(0, readiness - 6);
   const predictedHigh = Math.min(100, readiness + 5);
+  const activeMissions = subjectMissions.filter((m) => !m.completed);
 
-  const recommended = subjectMissions.filter((m) => !m.completed).slice(0, 3);
+  const runTopMission = () => {
+    const top = activeMissions[0];
+    if (top) runMission(top.id);
+  };
 
   return (
     <div>
@@ -108,21 +113,25 @@ function SubjectIntelligence() {
       <PageHeader
         eyebrow={`${s.code} · Subject Intelligence`}
         title={s.name}
-        description={`Rank #${s.rank} · ${s.concepts} concepts tracked · ${s.weakConcepts} require intervention`}
+        description={`Rank #${s.rank} · ${subjectConcepts.length} concepts tracked · ${s.weakConcepts} require intervention`}
         actions={
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 px-3 h-9 rounded-md border border-border bg-card text-xs">
               <StatusDot tone={s.status === "dominant" ? "success" : s.status === "stable" ? "info" : s.status === "at-risk" ? "warning" : "danger"} />
               <span className="font-medium capitalize">{s.status.replace("-", " ")}</span>
             </div>
-            <Link to="/recommendations" className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+            {activeMissions[0] && (
+              <button onClick={runTopMission} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer">
+                <Target className="h-3.5 w-3.5" /> Run top mission
+              </button>
+            )}
+            <button onClick={() => navigate({ to: "/recommendations" })} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-border text-xs font-medium hover:bg-accent cursor-pointer">
               <Sparkles className="h-3.5 w-3.5" /> Recommendations
-            </Link>
+            </button>
           </div>
         }
       />
 
-      {/* Overview Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Mastery" value={s.mastery} suffix="/100" trend={s.trend} icon={Activity} />
         <StatCard label="Memory" value={s.memory} suffix="/100" icon={Brain} tone="info" />
@@ -130,7 +139,6 @@ function SubjectIntelligence() {
         <StatCard label="Risk" value={s.risk} suffix="/100" icon={ShieldAlert} tone={s.risk > 60 ? "danger" : s.risk > 40 ? "warning" : "default"} />
       </div>
 
-      {/* Trends + Radar */}
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         <Panel title="Trend analysis" description="Eight-week intelligence trajectory" className="lg:col-span-2">
           <div className="h-72 -mx-2">
@@ -164,7 +172,6 @@ function SubjectIntelligence() {
         </Panel>
       </div>
 
-      {/* Topic breakdown + Concept distribution */}
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         <Panel title="Topic breakdown" description="Grouped by mastery band" className="lg:col-span-2">
           <div className="grid sm:grid-cols-3 gap-4">
@@ -176,16 +183,15 @@ function SubjectIntelligence() {
 
         <Panel title="Concept distribution">
           <div className="space-y-3">
-            <DistRow label="Total" value={s.concepts} tone="default" pct={100} />
-            <DistRow label="Strong" value={dist.strong} tone="success" pct={(dist.strong / s.concepts) * 100} />
-            <DistRow label="Developing" value={dist.developing} tone="default" pct={(dist.developing / s.concepts) * 100} />
-            <DistRow label="Weak" value={dist.weak} tone="warning" pct={(dist.weak / s.concepts) * 100} />
-            <DistRow label="Forgotten" value={dist.forgotten} tone="danger" pct={(dist.forgotten / s.concepts) * 100} />
+            <DistRow label="Total" value={subjectConcepts.length} tone="default" pct={100} />
+            <DistRow label="Strong" value={dist.strong} tone="success" pct={(dist.strong / Math.max(1, subjectConcepts.length)) * 100} />
+            <DistRow label="Developing" value={dist.developing} tone="default" pct={(dist.developing / Math.max(1, subjectConcepts.length)) * 100} />
+            <DistRow label="Weak" value={dist.weak} tone="warning" pct={(dist.weak / Math.max(1, subjectConcepts.length)) * 100} />
+            <DistRow label="Forgotten" value={dist.forgotten} tone="danger" pct={(dist.forgotten / Math.max(1, subjectConcepts.length)) * 100} />
           </div>
         </Panel>
       </div>
 
-      {/* Assessment Intelligence + Mission Intelligence */}
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         <Panel title="Assessment intelligence" description="Readiness for upcoming evaluations">
           {s.nextAssessment ? (
@@ -194,7 +200,7 @@ function SubjectIntelligence() {
                 <Calendar className="h-4 w-4 text-destructive shrink-0" />
                 <div>
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-destructive">Next assessment</div>
-                  <div className="text-sm font-medium mt-0.5">{s.nextAssessment}</div>
+                  <div className="text-sm font-medium mt-0.5">{s.nextAssessment}{s.daysToAssessment !== undefined ? ` · in ${s.daysToAssessment}d` : ""}</div>
                 </div>
               </div>
               <div>
@@ -216,12 +222,16 @@ function SubjectIntelligence() {
         </Panel>
 
         <Panel title="Mission intelligence" description="Active and recommended" className="lg:col-span-2">
-          {subjectMissions.length === 0 ? (
+          {activeMissions.length === 0 ? (
             <div className="text-sm text-muted-foreground py-8 text-center">No active missions. The intelligence engine is calibrated.</div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-3">
-              {subjectMissions.slice(0, 4).map((m) => (
-                <div key={m.id} className="p-3.5 rounded-lg border border-border/60 bg-card/50 hover:border-border transition-colors">
+              {activeMissions.slice(0, 4).map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => runMission(m.id)}
+                  className="text-left p-3.5 rounded-lg border border-border/60 bg-card/50 hover:border-border transition-colors cursor-pointer"
+                >
                   <div className="flex items-center gap-2 mb-1.5">
                     <Target className="h-3 w-3 text-primary" />
                     <span className={cn("text-[10px] uppercase tracking-wider font-semibold",
@@ -236,26 +246,27 @@ function SubjectIntelligence() {
                     <span className="flex items-center gap-1 text-muted-foreground"><Clock className="h-2.5 w-2.5" />{m.estimatedMinutes}m</span>
                     <span className="text-success font-medium">ROI {m.roiScore}</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </Panel>
       </div>
 
-      {/* Coach + Dependencies */}
       <div className="grid lg:grid-cols-2 gap-4 mb-6">
         <Panel title="Coach insights" description="Subject-specific strategic guidance">
           <div className="space-y-3">
             <CoachLine
-              tone="warning"
+              tone={s.trend < 0 ? "warning" : "success"}
               text={s.trend < 0
                 ? `Momentum has reversed (${s.trend.toFixed(1)}% this week). Reallocate 2 sessions from low-risk subjects to rebuild ${s.name}'s foundation.`
                 : `Trajectory is healthy. Maintain the current cadence — ${s.hoursThisWeek}h/week is producing measurable mastery gains.`}
             />
             <CoachLine
               tone="info"
-              text={`The bottleneck right now is "${bottlenecks[0]?.name ?? "—"}". It is high-importance and gating ${Math.max(2, Math.round(s.weakConcepts / 4))} downstream concepts.`}
+              text={bottlenecks[0]
+                ? `The bottleneck right now is "${bottlenecks[0].name}". It is importance ${bottlenecks[0].importance}/10 with mastery ${bottlenecks[0].mastery}.`
+                : `No bottleneck detected — every concept is above the developing band.`}
             />
             <CoachLine
               tone={s.risk > 60 ? "danger" : "success"}
@@ -265,7 +276,7 @@ function SubjectIntelligence() {
             />
           </div>
           <div className="mt-4 pt-4 border-t border-border/60 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">3 insights generated · updated {new Date().toLocaleDateString()}</span>
+            <span className="text-xs text-muted-foreground">{subjectRecs.length} live recommendations</span>
             <Link to="/coach" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
               Open AI Coach <ChevronRight className="h-3 w-3" />
             </Link>
@@ -285,6 +296,7 @@ function SubjectIntelligence() {
                     <div className="text-[11px] text-muted-foreground">Importance {c.importance}/10 · mastery {c.mastery}</div>
                   </Link>
                 ))}
+                {foundation.length === 0 && <div className="text-xs text-muted-foreground italic">No high-importance concepts tagged.</div>}
               </div>
             </div>
             <div>
@@ -304,7 +316,6 @@ function SubjectIntelligence() {
         </Panel>
       </div>
 
-      {/* Concepts list */}
       <Panel
         title="All concepts in this subject"
         description={`${subjectConcepts.length} tracked · drill down for full intelligence`}
@@ -330,14 +341,6 @@ function SubjectIntelligence() {
           </div>
         )}
       </Panel>
-
-      {recommended.length > 0 && (
-        <div className="mt-6">
-          <Link to="/diagnostics" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-            Diagnose underlying causes <ChevronRight className="h-3 w-3" />
-          </Link>
-        </div>
-      )}
     </div>
   );
 }
@@ -358,11 +361,10 @@ function CoachLine({ tone, text }: { tone: "success" | "warning" | "danger" | "i
 }
 
 function TopicColumn({ label, tone, topics }: { label: string; tone: "success" | "warning" | "danger"; topics: { topic: string; mastery: number; count: number }[] }) {
-  const dotTone = tone === "success" ? "success" : tone === "warning" ? "warning" : "danger";
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-2.5">
-        <StatusDot tone={dotTone} />
+        <StatusDot tone={tone} />
         <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{label} · {topics.length}</span>
       </div>
       {topics.length === 0 ? (

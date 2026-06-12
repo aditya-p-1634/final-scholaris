@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ShieldAlert, AlertTriangle } from "lucide-react";
 import { ScatterChart, Scatter, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ZAxis } from "recharts";
 import { PageHeader, Panel, StatCard } from "@/components/widgets";
-import { concepts, subjects } from "@/lib/mock-data";
+import { useIntelligence } from "@/lib/intelligence";
 
 export const Route = createFileRoute("/risk")({
   head: () => ({ meta: [{ title: "Risk Dashboard — Scholaris" }] }),
@@ -10,18 +10,20 @@ export const Route = createFileRoute("/risk")({
 });
 
 function RiskDashboard() {
+  const { concepts, subjects, academicStatus } = useIntelligence();
   const atRiskSubjects = subjects.filter((s) => s.risk >= 50).sort((a, b) => b.risk - a.risk);
   const scatter = concepts.map((c) => ({ x: c.mastery, y: c.risk, z: c.importance * 30, name: c.name, subject: c.subjectName }));
+  const nextExam = subjects.filter((s) => s.daysToAssessment !== undefined).sort((a, b) => (a.daysToAssessment! - b.daysToAssessment!))[0];
 
   return (
     <div>
       <PageHeader eyebrow="Intelligence" title="Risk Dashboard" description="Where you're most exposed to academic underperformance and decay." />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Composite risk" value={45} suffix="/100" trend={-2.4} icon={ShieldAlert} tone="warning" />
+        <StatCard label="Composite risk" value={academicStatus.overallRisk} suffix="/100" icon={ShieldAlert} tone="warning" />
         <StatCard label="Subjects at risk" value={atRiskSubjects.length} tone="danger" />
         <StatCard label="High-risk concepts" value={concepts.filter((c) => c.risk > 60).length} icon={AlertTriangle} tone="danger" />
-        <StatCard label="Days to next exam" value="3" tone="warning" />
+        <StatCard label="Days to next exam" value={nextExam?.daysToAssessment ?? "—"} tone="warning" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
@@ -41,17 +43,21 @@ function RiskDashboard() {
         </Panel>
 
         <Panel title="Subjects at risk">
-          <div className="space-y-3">
-            {atRiskSubjects.map((s) => (
-              <Link to="/subjects/$id" params={{ id: s.id }} key={s.id} className="block p-3 rounded-lg border border-border/60 hover:border-border bg-card/50">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium">{s.name}</span>
-                  <span className={`text-xs font-mono ${s.risk > 70 ? "text-destructive" : "text-warning"}`}>{s.risk}</span>
-                </div>
-                <div className="text-[11px] text-muted-foreground">{s.code} · {s.weakConcepts} weak concepts</div>
-              </Link>
-            ))}
-          </div>
+          {atRiskSubjects.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-8 text-center">No subjects currently above the risk threshold.</div>
+          ) : (
+            <div className="space-y-3">
+              {atRiskSubjects.map((s) => (
+                <Link to="/subjects/$id" params={{ id: s.id }} key={s.id} className="block p-3 rounded-lg border border-border/60 hover:border-border bg-card/50">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium">{s.name}</span>
+                    <span className={`text-xs font-mono ${s.risk > 70 ? "text-destructive" : "text-warning"}`}>{s.risk}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{s.code} · {s.weakConcepts} weak concepts</div>
+                </Link>
+              ))}
+            </div>
+          )}
         </Panel>
       </div>
     </div>
