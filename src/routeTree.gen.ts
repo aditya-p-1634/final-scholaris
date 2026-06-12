@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SessionsRouteImport } from './routes/sessions'
 import { Route as RoiRouteImport } from './routes/roi'
 import { Route as RiskRouteImport } from './routes/risk'
+import { Route as RecommendationsRouteImport } from './routes/recommendations'
 import { Route as MissionsRouteImport } from './routes/missions'
 import { Route as MemoryRouteImport } from './routes/memory'
+import { Route as DiagnosticsRouteImport } from './routes/diagnostics'
 import { Route as ConceptsRouteImport } from './routes/concepts'
 import { Route as CoachRouteImport } from './routes/coach'
 import { Route as BattlefieldRouteImport } from './routes/battlefield'
@@ -36,6 +38,11 @@ const RiskRoute = RiskRouteImport.update({
   path: '/risk',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecommendationsRoute = RecommendationsRouteImport.update({
+  id: '/recommendations',
+  path: '/recommendations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MissionsRoute = MissionsRouteImport.update({
   id: '/missions',
   path: '/missions',
@@ -44,6 +51,11 @@ const MissionsRoute = MissionsRouteImport.update({
 const MemoryRoute = MemoryRouteImport.update({
   id: '/memory',
   path: '/memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiagnosticsRoute = DiagnosticsRouteImport.update({
+  id: '/diagnostics',
+  path: '/diagnostics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConceptsRoute = ConceptsRouteImport.update({
@@ -82,8 +94,10 @@ export interface FileRoutesByFullPath {
   '/battlefield': typeof BattlefieldRoute
   '/coach': typeof CoachRoute
   '/concepts': typeof ConceptsRouteWithChildren
+  '/diagnostics': typeof DiagnosticsRoute
   '/memory': typeof MemoryRoute
   '/missions': typeof MissionsRoute
+  '/recommendations': typeof RecommendationsRoute
   '/risk': typeof RiskRoute
   '/roi': typeof RoiRoute
   '/sessions': typeof SessionsRoute
@@ -95,8 +109,10 @@ export interface FileRoutesByTo {
   '/battlefield': typeof BattlefieldRoute
   '/coach': typeof CoachRoute
   '/concepts': typeof ConceptsRouteWithChildren
+  '/diagnostics': typeof DiagnosticsRoute
   '/memory': typeof MemoryRoute
   '/missions': typeof MissionsRoute
+  '/recommendations': typeof RecommendationsRoute
   '/risk': typeof RiskRoute
   '/roi': typeof RoiRoute
   '/sessions': typeof SessionsRoute
@@ -109,8 +125,10 @@ export interface FileRoutesById {
   '/battlefield': typeof BattlefieldRoute
   '/coach': typeof CoachRoute
   '/concepts': typeof ConceptsRouteWithChildren
+  '/diagnostics': typeof DiagnosticsRoute
   '/memory': typeof MemoryRoute
   '/missions': typeof MissionsRoute
+  '/recommendations': typeof RecommendationsRoute
   '/risk': typeof RiskRoute
   '/roi': typeof RoiRoute
   '/sessions': typeof SessionsRoute
@@ -124,8 +142,10 @@ export interface FileRouteTypes {
     | '/battlefield'
     | '/coach'
     | '/concepts'
+    | '/diagnostics'
     | '/memory'
     | '/missions'
+    | '/recommendations'
     | '/risk'
     | '/roi'
     | '/sessions'
@@ -137,8 +157,10 @@ export interface FileRouteTypes {
     | '/battlefield'
     | '/coach'
     | '/concepts'
+    | '/diagnostics'
     | '/memory'
     | '/missions'
+    | '/recommendations'
     | '/risk'
     | '/roi'
     | '/sessions'
@@ -150,8 +172,10 @@ export interface FileRouteTypes {
     | '/battlefield'
     | '/coach'
     | '/concepts'
+    | '/diagnostics'
     | '/memory'
     | '/missions'
+    | '/recommendations'
     | '/risk'
     | '/roi'
     | '/sessions'
@@ -164,8 +188,10 @@ export interface RootRouteChildren {
   BattlefieldRoute: typeof BattlefieldRoute
   CoachRoute: typeof CoachRoute
   ConceptsRoute: typeof ConceptsRouteWithChildren
+  DiagnosticsRoute: typeof DiagnosticsRoute
   MemoryRoute: typeof MemoryRoute
   MissionsRoute: typeof MissionsRoute
+  RecommendationsRoute: typeof RecommendationsRoute
   RiskRoute: typeof RiskRoute
   RoiRoute: typeof RoiRoute
   SessionsRoute: typeof SessionsRoute
@@ -195,6 +221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RiskRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recommendations': {
+      id: '/recommendations'
+      path: '/recommendations'
+      fullPath: '/recommendations'
+      preLoaderRoute: typeof RecommendationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/missions': {
       id: '/missions'
       path: '/missions'
@@ -207,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/memory'
       fullPath: '/memory'
       preLoaderRoute: typeof MemoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diagnostics': {
+      id: '/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/diagnostics'
+      preLoaderRoute: typeof DiagnosticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/concepts': {
@@ -271,8 +311,10 @@ const rootRouteChildren: RootRouteChildren = {
   BattlefieldRoute: BattlefieldRoute,
   CoachRoute: CoachRoute,
   ConceptsRoute: ConceptsRouteWithChildren,
+  DiagnosticsRoute: DiagnosticsRoute,
   MemoryRoute: MemoryRoute,
   MissionsRoute: MissionsRoute,
+  RecommendationsRoute: RecommendationsRoute,
   RiskRoute: RiskRoute,
   RoiRoute: RoiRoute,
   SessionsRoute: SessionsRoute,
