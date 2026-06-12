@@ -1,35 +1,33 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import {
-  ArrowLeft, Activity, Brain, TrendingUp, ShieldAlert, Clock, Sparkles,
+  ArrowLeft, Activity, Brain, TrendingUp, ShieldAlert, Sparkles,
   GitBranch, ArrowDown, ArrowUp, Target, AlertTriangle, ChevronRight,
-  History, ClipboardCheck, Crosshair,
+  History, ClipboardCheck, Crosshair, Play,
 } from "lucide-react";
 import {
-  LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Area, AreaChart, Legend,
+  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Area, AreaChart, Legend,
 } from "recharts";
 import { PageHeader, Panel, StatCard, StatusDot, MetricBar } from "@/components/widgets";
-import { concepts, missions } from "@/lib/mock-data";
+import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/concepts/$id")({
-  loader: ({ params }) => {
-    const concept = concepts.find((c) => c.id === params.id);
-    if (!concept) throw notFound();
-    return { concept };
-  },
-  head: ({ loaderData }) => ({
-    meta: [
-      { title: `${loaderData?.concept.name ?? "Concept"} — Concept Intelligence` },
-    ],
+  loader: ({ params }) => ({ id: params.id }),
+  head: () => ({
+    meta: [{ title: `Concept Intelligence — Scholaris` }],
   }),
   component: ConceptIntelligence,
   notFoundComponent: () => <div className="text-center py-20 text-sm text-muted-foreground">Concept not found.</div>,
 });
 
 function ConceptIntelligence() {
-  const { concept: c } = Route.useLoaderData();
+  const { id } = Route.useLoaderData();
+  const { concepts, missions, sessions } = useIntelligence();
+  const { runSession } = useIntelligenceActions();
 
-  // Memory decay curve (past 14d + forecast 14d)
+  const c = concepts.find((x) => x.id === id);
+  if (!c) throw notFound();
+
   const decayCurve = Array.from({ length: 28 }, (_, i) => {
     const day = i - 13;
     const isPast = day <= 0;
@@ -40,16 +38,19 @@ function ConceptIntelligence() {
     return { day: day === 0 ? "Today" : day > 0 ? `+${day}d` : `${day}d`, memory, recovered, isPast };
   });
 
-  // Pick siblings as mocked prerequisites & dependents
   const subjectSiblings = concepts.filter((x) => x.subjectId === c.subjectId && x.id !== c.id);
   const prerequisites = subjectSiblings.filter((x) => x.importance >= c.importance).slice(0, 2);
   const dependents = subjectSiblings.filter((x) => x.importance <= c.importance).slice(0, 3);
 
   const relatedMissions = missions.filter((m) => m.conceptIds.includes(c.id));
   const activeMissions = relatedMissions.filter((m) => !m.completed);
+  const conceptSessions = sessions.filter((s) => s.conceptId === c.id);
 
   const decayStatus = c.memoryStrength > 70 ? "stable" : c.memoryStrength > 45 ? "decaying" : "critical";
   const recoveryStatus = c.mastery < 35 ? "urgent-recovery" : c.mastery < 60 ? "needs-reinforcement" : "on-track";
+
+  const sessionType = c.mastery < 40 ? "Recovery" as const : c.mastery < 70 ? "Reinforcement" as const : "Review" as const;
+  const sessionMinutes = c.mastery < 40 ? 25 : c.mastery < 70 ? 18 : 12;
 
   return (
     <div>
@@ -67,14 +68,21 @@ function ConceptIntelligence() {
         title={c.name}
         description="Complete intelligence profile — memory, dependencies, history, and AI analysis"
         actions={
-          <span className="inline-flex items-center gap-1.5 text-xs px-3 h-9 rounded-md border border-border bg-card capitalize">
-            <StatusDot tone={c.status === "mastered" ? "success" : c.status === "strong" ? "info" : c.status === "weak" ? "warning" : c.status === "forgotten" ? "danger" : "default"} />
-            {c.status}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs px-3 h-9 rounded-md border border-border bg-card capitalize">
+              <StatusDot tone={c.status === "mastered" ? "success" : c.status === "strong" ? "info" : c.status === "weak" ? "warning" : c.status === "forgotten" ? "danger" : "default"} />
+              {c.status}
+            </span>
+            <button
+              onClick={() => runSession({ conceptId: c.id, type: sessionType, minutes: sessionMinutes })}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer"
+            >
+              <Play className="h-3.5 w-3.5" /> Run {sessionType.toLowerCase()} session
+            </button>
+          </div>
         }
       />
 
-      {/* Core metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Mastery" value={c.mastery} suffix="/100" icon={Activity} />
         <StatCard label="Memory" value={c.memoryStrength} suffix="/100" icon={Brain} tone="info" />
@@ -82,7 +90,6 @@ function ConceptIntelligence() {
         <StatCard label="Risk" value={c.risk} suffix="/100" icon={ShieldAlert} tone={c.risk > 60 ? "danger" : c.risk > 40 ? "warning" : "default"} />
       </div>
 
-      {/* Concept health + Intelligence profile */}
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         <Panel title="Concept health" description="Decay and recovery posture">
           <div className="space-y-3.5">
@@ -119,7 +126,6 @@ function ConceptIntelligence() {
         </Panel>
       </div>
 
-      {/* Memory analysis */}
       <Panel title="Memory analysis" description="Past retention, predicted forgetting, and recovery forecast" className="mb-6">
         <div className="h-80 -mx-2">
           <ResponsiveContainer width="100%" height="100%">
@@ -152,7 +158,6 @@ function ConceptIntelligence() {
         </div>
       </Panel>
 
-      {/* Dependencies */}
       <div className="grid lg:grid-cols-2 gap-4 mb-6">
         <Panel title="Prerequisites" description="Foundation concepts feeding into this">
           {prerequisites.length === 0 ? (
@@ -175,15 +180,11 @@ function ConceptIntelligence() {
                     </div>
                   </Link>
                   {i < prerequisites.length - 1 && (
-                    <div className="flex justify-center my-1.5">
-                      <ArrowDown className="h-3 w-3 text-muted-foreground/60" />
-                    </div>
+                    <div className="flex justify-center my-1.5"><ArrowDown className="h-3 w-3 text-muted-foreground/60" /></div>
                   )}
                 </div>
               ))}
-              <div className="flex justify-center my-1.5">
-                <ArrowDown className="h-3 w-3 text-primary" />
-              </div>
+              <div className="flex justify-center my-1.5"><ArrowDown className="h-3 w-3 text-primary" /></div>
               <div className="p-2.5 rounded-lg border border-primary/40 bg-primary/5">
                 <div className="text-sm font-medium text-primary">{c.name}</div>
                 <div className="text-[11px] text-muted-foreground">Current concept</div>
@@ -201,9 +202,7 @@ function ConceptIntelligence() {
                 <div className="text-sm font-medium text-primary">{c.name}</div>
                 <div className="text-[11px] text-muted-foreground">Current concept</div>
               </div>
-              <div className="flex justify-center my-1.5">
-                <ArrowDown className="h-3 w-3 text-primary" />
-              </div>
+              <div className="flex justify-center my-1.5"><ArrowDown className="h-3 w-3 text-primary" /></div>
               {dependents.map((d) => (
                 <Link key={d.id} to="/concepts/$id" params={{ id: d.id }} className="flex items-center gap-3 p-2.5 rounded-lg border border-border/60 hover:border-border hover:bg-card/50 transition-colors group">
                   <div className="h-7 w-7 rounded-md bg-success/15 grid place-items-center shrink-0">
@@ -220,12 +219,24 @@ function ConceptIntelligence() {
         </Panel>
       </div>
 
-      {/* Sessions + Assessments */}
       <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <Panel title="Session history" description={`${c.reviewCount} learning sessions involving this concept`}>
+        <Panel title="Session history" description={`${conceptSessions.length || c.reviewCount} learning sessions involving this concept`}>
           <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => {
-              const types = ["Active recall", "Spaced review", "Targeted drill", "Diagnostic", "Initial encoding"];
+            {conceptSessions.length > 0 ? conceptSessions.slice(0, 5).map((s) => (
+              <div key={s.id} className="flex items-start gap-3">
+                <div className="h-7 w-7 rounded-full bg-muted grid place-items-center shrink-0">
+                  <History className="h-3 w-3 text-muted-foreground" />
+                </div>
+                <div className="flex-1 pb-3 border-b border-border/40 last:border-0 last:pb-0">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">{s.type}</span>
+                    <span className="text-xs text-muted-foreground">{s.dateLabel}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">+{s.gain} mastery · {s.duration}m session</div>
+                </div>
+              </div>
+            )) : Array.from({ length: 4 }).map((_, i) => {
+              const types = ["Active recall", "Spaced review", "Targeted drill", "Initial encoding"];
               const mastery = Math.max(20, c.mastery - i * 7);
               return (
                 <div key={i} className="flex items-start gap-3">
@@ -237,7 +248,7 @@ function ConceptIntelligence() {
                       <span className="font-medium">{types[i]}</span>
                       <span className="text-xs text-muted-foreground">{(i + 1) * 3}d ago</span>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Mastery {Math.max(15, mastery - 8)} → {mastery} · {12 + i * 4}m session</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Mastery {Math.max(15, mastery - 8)} → {mastery} · {12 + i * 4}m</div>
                   </div>
                 </div>
               );
@@ -270,7 +281,6 @@ function ConceptIntelligence() {
         </Panel>
       </div>
 
-      {/* Mission connections + Coach analysis */}
       <div className="grid lg:grid-cols-2 gap-4">
         <Panel title="Mission connections" description="Active and historical missions touching this concept">
           {relatedMissions.length === 0 ? (
@@ -393,6 +403,3 @@ function CoachLine({ tone, label, text }: { tone: "success" | "warning" | "dange
     </div>
   );
 }
-
-// silence unused import lints if user removes Clock chip
-void Clock;
