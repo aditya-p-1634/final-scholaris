@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { TrendingUp, Zap } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { PageHeader, Panel, StatCard, MetricBar } from "@/components/widgets";
-import { concepts, subjects } from "@/lib/mock-data";
+import { useIntelligence } from "@/lib/intelligence";
 
 export const Route = createFileRoute("/roi")({
   head: () => ({ meta: [{ title: "Knowledge ROI — Scholaris" }] }),
@@ -10,6 +10,7 @@ export const Route = createFileRoute("/roi")({
 });
 
 function RoiDashboard() {
+  const { concepts, subjects, academicStatus } = useIntelligence();
   const ranked = [...concepts].sort((a, b) => b.roi - a.roi).slice(0, 8);
   const subjectRoi = subjects.map((s) => ({ name: s.code, roi: s.roi }));
 
@@ -18,10 +19,10 @@ function RoiDashboard() {
       <PageHeader eyebrow="Intelligence" title="Knowledge ROI" description="Where every minute of study creates the most academic value." />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Avg ROI" value={74} suffix="/100" trend={3.1} icon={TrendingUp} tone="success" />
+        <StatCard label="Avg ROI" value={academicStatus.overallRoi} suffix="/100" icon={TrendingUp} tone="success" />
         <StatCard label="High-ROI concepts" value={concepts.filter((c) => c.roi > 80).length} icon={Zap} tone="success" />
-        <StatCard label="Hours invested (7d)" value="25.3" />
-        <StatCard label="Mastery / hour" value="0.42" trend={6.1} tone="success" />
+        <StatCard label="Hours invested (7d)" value={academicStatus.weeklyHours} />
+        <StatCard label="Mastered concepts" value={academicStatus.masteredConcepts} tone="success" />
       </div>
 
       <Panel title="ROI by subject" className="mb-6">
@@ -41,7 +42,7 @@ function RoiDashboard() {
       <Panel title="Highest-ROI concepts" description="Where your effort compounds the fastest">
         <div className="space-y-3">
           {ranked.map((c, i) => (
-            <div key={c.id} className="flex items-center gap-4">
+            <Link to="/concepts/$id" params={{ id: c.id }} key={c.id} className="flex items-center gap-4 hover:bg-accent/20 -mx-2 px-2 py-1 rounded-md transition-colors">
               <div className="w-6 text-xs font-mono text-muted-foreground">{i + 1}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between mb-1.5">
@@ -51,7 +52,7 @@ function RoiDashboard() {
                 <MetricBar value={c.roi} tone="success" />
                 <div className="text-[11px] text-muted-foreground mt-1">{c.subjectName} · mastery {c.mastery}</div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </Panel>

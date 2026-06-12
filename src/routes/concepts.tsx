@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Atom, Filter, Search as SearchIcon } from "lucide-react";
 import { PageHeader, Panel, StatusDot, MetricBar } from "@/components/widgets";
-import { concepts, subjects, type ConceptStatus } from "@/lib/mock-data";
+import { useIntelligence } from "@/lib/intelligence";
+import type { ConceptStatus } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/concepts")({
   head: () => ({
@@ -19,6 +20,7 @@ const statusTone: Record<ConceptStatus, "success" | "info" | "warning" | "danger
 };
 
 function ConceptsWorkspace() {
+  const { concepts, subjects } = useIntelligence();
   const [q, setQ] = useState("");
   const [subjectFilter, setSubjectFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -30,7 +32,7 @@ function ConceptsWorkspace() {
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
       return true;
     });
-  }, [q, subjectFilter, statusFilter]);
+  }, [concepts, q, subjectFilter, statusFilter]);
 
   return (
     <div>

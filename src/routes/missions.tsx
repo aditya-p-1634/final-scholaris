@@ -3,7 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Target, Flame, Clock, ChevronRight, Check } from "lucide-react";
 import { PageHeader, Panel } from "@/components/widgets";
-import { missions, type MissionPriority } from "@/lib/mock-data";
+import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
+import type { MissionPriority } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/missions")({
   head: () => ({
@@ -23,10 +24,19 @@ const priorityTone: Record<MissionPriority, string> = {
 };
 
 function MissionsCenter() {
+  const { missions, sessions } = useIntelligence();
+  const { runMission } = useIntelligenceActions();
   const [filter, setFilter] = useState<"all" | MissionPriority>("all");
-  const filtered = filter === "all" ? missions : missions.filter((m) => m.priority === filter);
 
+  const active = missions.filter((m) => !m.completed);
+  const filtered = filter === "all" ? active : active.filter((m) => m.priority === filter);
   const totalMinutes = filtered.reduce((sum, m) => sum + m.estimatedMinutes, 0);
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const completedToday = sessions.filter((s) => s.timestamp >= todayStart.getTime());
+  const completedMinutes = completedToday.reduce((a, s) => a + s.duration, 0);
+  const masteryGained = completedToday.reduce((a, s) => a + s.gain, 0);
 
   return (
     <div>
@@ -46,11 +56,11 @@ function MissionsCenter() {
           <button
             key={p}
             onClick={() => setFilter(p)}
-            className={`px-3 h-8 rounded-md text-xs font-medium capitalize transition-colors ${
+            className={`px-3 h-8 rounded-md text-xs font-medium capitalize transition-colors cursor-pointer ${
               filter === p ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
             }`}
           >
-            {p} {p !== "all" && <span className="ml-1 opacity-60">{missions.filter((m) => m.priority === p).length}</span>}
+            {p} {p !== "all" && <span className="ml-1 opacity-60">{active.filter((m) => m.priority === p).length}</span>}
           </button>
         ))}
       </div>
@@ -61,8 +71,8 @@ function MissionsCenter() {
             key={m.id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="group rounded-xl border border-border bg-card p-5 hover:border-border/100 transition-all cursor-pointer"
+            transition={{ delay: i * 0.03 }}
+            className="group rounded-xl border border-border bg-card p-5 hover:border-border/100 transition-all"
           >
             <div className="flex items-start gap-4">
               <div className={`h-10 w-10 shrink-0 rounded-lg grid place-items-center border ${priorityTone[m.priority]}`}>
@@ -88,20 +98,30 @@ function MissionsCenter() {
                     <span className="text-success font-medium">ROI {m.roiScore}</span>
                     {m.dueBy && <span className="text-warning capitalize">Due {m.dueBy}</span>}
                   </div>
-                  <button className="inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                    Start <ChevronRight className="h-3 w-3" />
+                  <button
+                    onClick={() => runMission(m.id)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
+                  >
+                    Run mission <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
               </div>
             </div>
           </motion.div>
         ))}
+        {filtered.length === 0 && (
+          <div className="col-span-full text-sm text-muted-foreground py-12 text-center">
+            No missions in this priority band. The intelligence engine is calibrated.
+          </div>
+        )}
       </div>
 
       <Panel title="Completed today" className="mt-6">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <div className="h-8 w-8 rounded-full bg-success/15 text-success grid place-items-center"><Check className="h-4 w-4" /></div>
-          <span>2 missions completed · 38 minutes invested · +4.2% mastery gained</span>
+          <span>
+            {completedToday.length} session{completedToday.length === 1 ? "" : "s"} completed · {completedMinutes} minutes invested · <span className="text-success">+{masteryGained}% mastery gained</span>
+          </span>
         </div>
       </Panel>
     </div>

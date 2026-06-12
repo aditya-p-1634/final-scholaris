@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   Activity, Brain, TrendingUp, ShieldAlert, Target, ArrowRight,
@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { PageHeader, StatCard, Panel, StatusDot, MetricBar } from "@/components/widgets";
-import { academicStatus, focusToday, masteryTrend, subjects, missions, insights, concepts } from "@/lib/mock-data";
+import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -19,10 +19,22 @@ export const Route = createFileRoute("/")({
 });
 
 function CommandCenter() {
-  const topMissions = missions.slice(0, 4);
+  const { concepts, subjects, missions, insights, academicStatus, focusToday, masteryTrend } = useIntelligence();
+  const { runMission } = useIntelligenceActions();
+  const navigate = useNavigate();
+
+  const topMissions = missions.filter((m) => !m.completed).slice(0, 4);
   const criticalAlerts = insights.filter((i) => i.severity === "critical" || i.kind === "alert").slice(0, 3);
   const roiFeed = insights.filter((i) => i.kind === "roi" || i.kind === "recommendation").slice(0, 3);
   const weakest = [...concepts].sort((a, b) => a.mastery - b.mastery).slice(0, 5);
+
+  const startTodaysPlan = () => {
+    const next = missions.find((m) => !m.completed);
+    if (next) {
+      runMission(next.id);
+      navigate({ to: "/missions" });
+    }
+  };
 
   return (
     <div>
@@ -31,25 +43,21 @@ function CommandCenter() {
         title="Good evening, Alex."
         description="Your academic intelligence is calibrated. Here's what matters today."
         actions={
-          <Link to="/missions" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+          <button onClick={startTodaysPlan} className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer">
             Start today's plan <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          </button>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Mastery" value={academicStatus.overallMastery} suffix="/100" trend={academicStatus.trend7d} icon={Activity} tone="default" />
-        <StatCard label="Memory" value={academicStatus.overallMemory} suffix="/100" trend={1.8} icon={Brain} tone="info" />
-        <StatCard label="Knowledge ROI" value={academicStatus.overallRoi} suffix="/100" trend={3.1} icon={TrendingUp} tone="success" />
-        <StatCard label="Risk Index" value={academicStatus.overallRisk} suffix="/100" trend={-2.4} icon={ShieldAlert} tone="warning" />
+        <StatCard label="Memory" value={academicStatus.overallMemory} suffix="/100" icon={Brain} tone="info" />
+        <StatCard label="Knowledge ROI" value={academicStatus.overallRoi} suffix="/100" icon={TrendingUp} tone="success" />
+        <StatCard label="Risk Index" value={academicStatus.overallRisk} suffix="/100" icon={ShieldAlert} tone="warning" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
-        <Panel
-          title="Academic trajectory"
-          description="Last 7 days — mastery, memory and ROI"
-          className="lg:col-span-2"
-        >
+        <Panel title="Academic trajectory" description="Last 7 days — mastery, memory and ROI" className="lg:col-span-2">
           <div className="h-64 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={masteryTrend} margin={{ top: 10, right: 8, bottom: 0, left: -16 }}>
@@ -65,15 +73,8 @@ function CommandCenter() {
                 </defs>
                 <CartesianGrid stroke="oklch(1 0 0 / 0.06)" vertical={false} />
                 <XAxis dataKey="day" stroke="oklch(0.68 0.02 250)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="oklch(0.68 0.02 250)" fontSize={11} tickLine={false} axisLine={false} domain={[40, 90]} />
-                <Tooltip
-                  contentStyle={{
-                    background: "oklch(0.20 0.013 250)",
-                    border: "1px solid oklch(1 0 0 / 0.08)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
+                <YAxis stroke="oklch(0.68 0.02 250)" fontSize={11} tickLine={false} axisLine={false} domain={[30, 90]} />
+                <Tooltip contentStyle={{ background: "oklch(0.20 0.013 250)", border: "1px solid oklch(1 0 0 / 0.08)", borderRadius: 8, fontSize: 12 }} />
                 <Area type="monotone" dataKey="mastery" stroke="oklch(0.72 0.16 250)" strokeWidth={2} fill="url(#gMastery)" />
                 <Area type="monotone" dataKey="memory" stroke="oklch(0.72 0.14 230)" strokeWidth={2} fill="url(#gMemory)" />
                 <Area type="monotone" dataKey="roi" stroke="oklch(0.72 0.16 155)" strokeWidth={2} fill="transparent" strokeDasharray="4 4" />
@@ -112,12 +113,13 @@ function CommandCenter() {
         <Panel title="Mission Priority Feed" description="ROI-ranked next actions" action={<Link to="/missions" className="text-xs text-primary hover:underline">All missions</Link>} className="lg:col-span-2">
           <div className="space-y-2">
             {topMissions.map((m, i) => (
-              <motion.div
+              <motion.button
                 key={m.id}
+                onClick={() => runMission(m.id)}
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.04 }}
-                className="group flex items-start gap-3 p-3 rounded-lg border border-border/60 bg-card hover:border-border hover:bg-accent/30 transition-colors cursor-pointer"
+                className="group w-full text-left flex items-start gap-3 p-3 rounded-lg border border-border/60 bg-card hover:border-border hover:bg-accent/30 transition-colors cursor-pointer"
               >
                 <div className={`h-9 w-9 shrink-0 rounded-md grid place-items-center ${
                   m.priority === "critical" ? "bg-destructive/15 text-destructive" :
@@ -141,8 +143,11 @@ function CommandCenter() {
                     <Clock className="h-2.5 w-2.5" />{m.estimatedMinutes}m
                   </div>
                 </div>
-              </motion.div>
+              </motion.button>
             ))}
+            {topMissions.length === 0 && (
+              <div className="text-sm text-muted-foreground py-6 text-center">All missions completed. The engine is recalibrating.</div>
+            )}
           </div>
         </Panel>
 
@@ -158,6 +163,9 @@ function CommandCenter() {
                 </div>
               </div>
             ))}
+            {criticalAlerts.length === 0 && (
+              <div className="text-sm text-muted-foreground py-6 text-center">No alerts — all systems stable.</div>
+            )}
           </div>
         </Panel>
       </div>
