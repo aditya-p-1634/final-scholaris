@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Swords, Atom, Target, Brain, TrendingUp,
-  ShieldAlert, Sparkles, ClipboardCheck, GraduationCap,
+  ShieldAlert, Sparkles, ClipboardCheck, GraduationCap, Lightbulb, Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,13 @@ const sections = [
       { to: "/memory", label: "Memory", icon: Brain },
       { to: "/roi", label: "Knowledge ROI", icon: TrendingUp },
       { to: "/risk", label: "Risk", icon: ShieldAlert },
+    ],
+  },
+  {
+    label: "Engines",
+    items: [
+      { to: "/recommendations", label: "Recommendations", icon: Lightbulb },
+      { to: "/diagnostics", label: "Diagnostics", icon: Stethoscope },
     ],
   },
   {
