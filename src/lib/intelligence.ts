@@ -882,7 +882,7 @@ export interface BottleneckEntry {
 export function deriveBottlenecks(s: Pick<State, "conceptsById" | "subjectsById">): BottleneckEntry[] {
   const concepts = deriveConcepts(s);
   return concepts
-    .filter((c) => c.dependentIds.length > 0 && c.bottleneckScore >= 45)
+    .filter((c) => c.isBottleneck)
     .sort((a, b) => b.bottleneckScore - a.bottleneckScore)
     .slice(0, 8)
     .map((c) => ({
@@ -890,9 +890,9 @@ export function deriveBottlenecks(s: Pick<State, "conceptsById" | "subjectsById"
       conceptName: c.name,
       subjectName: c.subjectName,
       bottleneckScore: c.bottleneckScore,
-      dependentCount: c.dependentIds.length,
+      dependentCount: c.downstreamCount,
       mastery: c.mastery,
-      reason: `${c.dependentIds.length} downstream concept${c.dependentIds.length === 1 ? "" : "s"} are gated by this node — mastery ${c.mastery}/100.`,
+      reason: `${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"} are gated by this node (depth ${c.dependencyDepth}) — mastery ${c.mastery}/100.`,
     }));
 }
 
