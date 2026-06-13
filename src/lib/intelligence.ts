@@ -1125,6 +1125,7 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
     if (c.isBottleneck) evidence.push(`Bottleneck · structural importance ${c.structuralImportance}/100 · critical path ${c.criticalPathScore}/100`);
     if (c.structuralRisk >= 8) evidence.push(`Structural risk +${c.structuralRisk} from weak prerequisites`);
     if (examSoon) evidence.push(`Exam in ${subj!.daysToAssessment}d · readiness ${subj!.readiness}/100`);
+    if (escalationNotes.length) evidence.push(`Priority escalated — ${escalationNotes.join(" · ")}`);
     const confidence = Math.round(clamp(
       72 + c.reviewCount * 1.4 + (c.assessmentAttempts > 0 ? 8 : 0) + (examSoon ? 6 : 0)
     ));
