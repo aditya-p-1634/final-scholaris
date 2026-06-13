@@ -955,6 +955,7 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
     const stale = subConcepts.filter((c) => c.daysSinceReview > 9).length;
     if (stale >= 3) {
       const id = `m-assessment-${sub.id}`;
+      const targets = subConcepts.slice(0, 6);
       out.push({
         id,
         type: "assessment",
@@ -963,11 +964,19 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
         priority: sub.daysToAssessment !== undefined && sub.daysToAssessment <= 5 ? "high" : "medium",
         subjectId: sub.id,
         subjectName: sub.name,
-        conceptIds: subConcepts.slice(0, 6).map((c) => c.id),
+        conceptIds: targets.map((c) => c.id),
         estimatedMinutes: 15,
         roiScore: 70 + (sub.risk > 50 ? 10 : 0),
         reason: `${stale} concepts not assessed in 9+ days`,
         completed: completed.has(id),
+        evidence: [
+          `${stale} concepts last assessed > 9 days ago`,
+          `Subject readiness ${sub.readiness}/100 · predicted band ${sub.predictedScore.low}–${sub.predictedScore.high}%`,
+          `Dependency health ${sub.dependencyHealth}/100`,
+        ],
+        confidence: 80,
+        expectedImpact: `Tightens prediction band by ±${Math.round(stale / 2)}% · recalibrates ${targets.length} concepts`,
+        riskReduction: Math.round(sub.risk * 0.15),
       });
     }
   }
