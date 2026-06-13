@@ -12,7 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ThemeProvider } from "../components/theme-provider";
-import { AppShell } from "../components/app-shell";
+import { supabase } from "@/integrations/supabase/client";
+import { useIntelligenceActions } from "@/lib/intelligence";
 
 function NotFoundComponent() {
   return (
