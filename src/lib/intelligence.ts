@@ -363,6 +363,8 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       conceptsById: { ...s.conceptsById, [conceptId]: updated },
       sessions: [entry, ...s.sessions].slice(0, 30),
     }));
+    void persistSession(entry);
+    void persistConceptPatch(conceptId, updated);
     return entry;
   },
 
