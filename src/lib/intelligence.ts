@@ -439,6 +439,7 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       };
     }
     set((st) => ({ version: st.version + 1, conceptsById: concepts, subjectsById: subjects }));
+    void persistAdvanceDay(Object.values(concepts).map((c) => ({ id: c.id, daysSinceReview: c.daysSinceReview, memoryStrength: c.memoryStrength })));
   },
 
   recordQuestionAssessment: ({ subjectId, title, questions }) => {
