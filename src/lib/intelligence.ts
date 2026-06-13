@@ -297,22 +297,35 @@ function parseLastReviewed(s: string): number {
   return m ? parseInt(m[1], 10) : 14;
 }
 
-function seedState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "advanceDay" | "resetIntelligence"> {
+// Per-subject strategic value heuristic (long-term importance within program).
+const SUBJECT_STRATEGIC_VALUE: Record<string, number> = {
+  "sub-1": 88, "sub-2": 92, "sub-3": 70, "sub-4": 64, "sub-5": 95, "sub-6": 55,
+};
+
+function seedState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "recordQuestionAssessment" | "advanceDay" | "resetIntelligence"> {
   const subjectsById: Record<string, SubjectMeta> = {};
   for (const s of seedSubjects) {
+    const daysTo = s.nextAssessment ? Math.max(0, daysBetween(s.nextAssessment)) : undefined;
     subjectsById[s.id] = {
       id: s.id,
       name: s.name,
       code: s.code,
       color: s.color,
       nextAssessment: s.nextAssessment,
-      daysToAssessment: s.nextAssessment ? Math.max(0, daysBetween(s.nextAssessment)) : undefined,
+      daysToAssessment: daysTo,
       hoursThisWeek: s.hoursThisWeek,
-      baselineMastery: s.mastery - s.trend, // recover the "1 week ago" snapshot
+      baselineMastery: s.mastery - s.trend,
+      // Exams within a week weigh heavily; further-out exams less so.
+      examWeight: daysTo === undefined ? 0.25 : clamp(1 - daysTo / 30, 0.2, 1) as number,
+      strategicValue: SUBJECT_STRATEGIC_VALUE[s.id] ?? 60,
     };
   }
   const conceptsById: Record<string, ConceptCore> = {};
   for (const c of seedConcepts) {
+    // Seed recall history from existing review count so memory metrics
+    // have something to work with on first load.
+    const successes = Math.max(0, Math.round(c.reviewCount * (c.mastery / 100)));
+    const failures = Math.max(0, c.reviewCount - successes);
     conceptsById[c.id] = {
       id: c.id,
       name: c.name,
@@ -325,6 +338,10 @@ function seedState(): Omit<State, "version" | "runSession" | "runMission" | "rec
       decayRate: c.decayRate,
       daysSinceReview: parseLastReviewed(c.lastReviewed),
       reviewCount: c.reviewCount,
+      successfulRecalls: successes,
+      failedRecalls: failures,
+      assessmentAttempts: 0,
+      assessmentCorrect: 0,
     };
   }
   // Seed a couple of historical sessions and one underperforming assessment
