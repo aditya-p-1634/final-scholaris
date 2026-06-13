@@ -935,6 +935,7 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
       isCriticalPath,
       memory: x.memory,
       roiBreakdown: x.roiBreakdown,
+      roiContributors,
       explain: { risk: explainRisk, roi: explainRoi },
     } satisfies DerivedConcept;
   });
