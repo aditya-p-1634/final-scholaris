@@ -99,7 +99,8 @@ function ConceptIntelligence() {
             <HealthRow label="Decay status" value={decayStatus} tone={decayStatus === "critical" ? "danger" : decayStatus === "decaying" ? "warning" : "success"} />
             <HealthRow label="Recovery status" value={recoveryStatus.replace("-", " ")} tone={recoveryStatus === "urgent-recovery" ? "danger" : recoveryStatus === "needs-reinforcement" ? "warning" : "success"} />
             <HealthRow label="Decay rate" value={c.decayRate.toFixed(2)} tone={c.decayRate > 0.2 ? "danger" : c.decayRate > 0.12 ? "warning" : "success"} />
-            <HealthRow label="Importance" value={`${c.importance}/10`} tone={c.importance >= 9 ? "danger" : c.importance >= 7 ? "warning" : "success"} />
+            <HealthRow label="Bottleneck" value={c.isBottleneck ? `yes · gates ${c.downstreamCount}` : "no"} tone={c.isBottleneck ? "danger" : "success"} />
+            <HealthRow label="Critical path" value={c.isCriticalPath ? `yes · ${c.criticalPathScore}/100` : "no"} tone={c.isCriticalPath ? "warning" : "success"} />
           </div>
         </Panel>
 
@@ -107,20 +108,22 @@ function ConceptIntelligence() {
           <div className="grid sm:grid-cols-3 gap-4">
             <ProfileBlock
               icon={Crosshair}
-              title="Why this matters"
-              body={`${c.name} carries an importance weight of ${c.importance}/10 within ${c.subjectName}. It anchors the "${c.topic}" thread and influences ${dependents.length} downstream concept${dependents.length === 1 ? "" : "s"}.`}
+              title="Structural position"
+              body={`Depth ${c.dependencyDepth} in the graph · ${c.dependencyCount} upstream / ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"}. Structural importance ${c.structuralImportance}/100.`}
             />
             <ProfileBlock
               icon={TrendingUp}
               title="Strategic importance"
               body={c.roi > 80
-                ? `ROI is exceptional (${c.roi}/100). Investment here yields outsized mastery gains across the topic cluster.`
+                ? `ROI is exceptional (${c.roi}/100). Investment here yields outsized mastery gains${c.downstreamCount ? ` and unlocks ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"}` : ""}.`
                 : `ROI ${c.roi}/100 — moderate. Pair with adjacent concepts for compounded returns.`}
             />
             <ProfileBlock
               icon={ClipboardCheck}
-              title="Exam importance"
-              body={c.importance >= 8
+              title={c.isBottleneck ? "Bottleneck signal" : "Exam importance"}
+              body={c.isBottleneck
+                ? `Weak node gating ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"}. Bottleneck score ${c.bottleneckScore}/100 — clearing this releases compounded risk.`
+                : c.importance >= 8
                 ? `High-yield exam concept. Historically appears in ${Math.round(c.importance * 6)}% of assessments in ${c.subjectName}.`
                 : `Standard exam weight. Expected in periodic problem sets but rarely a focal point.`}
             />
