@@ -198,7 +198,7 @@ function ConceptIntelligence() {
           )}
         </Panel>
 
-        <Panel title="Dependents" description="Concepts unlocked by mastering this">
+        <Panel title="Dependents" description={`${dependents.length} direct · ${c.downstreamCount} downstream total · unlock potential ${c.unlockPotential}/100`}>
           {dependents.length === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center">No downstream dependents tracked.</div>
           ) : (
