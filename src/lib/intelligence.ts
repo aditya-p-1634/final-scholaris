@@ -184,6 +184,11 @@ export interface DerivedMission {
   reason: string;
   dueBy?: string;
   completed: boolean;
+  // Explainability
+  evidence: string[];
+  confidence: number;
+  expectedImpact: string;
+  riskReduction: number; // 0–100 pts of risk projected to be removed
 }
 
 export type RecommendationCategory =
@@ -202,6 +207,9 @@ export interface DerivedRecommendation {
   minutes: number;
   subjectId?: string;
   conceptId?: string;
+  // Explainability — top contributing factors with weighted scores.
+  factors: { label: string; weight: number; value: string }[];
+  unlocks: string[]; // names of downstream concepts this would unlock
 }
 
 export type IncidentCategory =
