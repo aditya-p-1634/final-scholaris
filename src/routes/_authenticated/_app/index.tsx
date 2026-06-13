@@ -396,6 +396,252 @@ function PredictiveSection({ predictive, runMission }: { predictive: ReturnType<
   );
 }
 
+// ===================== Execution layer UI =====================
+
+const trendTone: Record<MomentumReport["trend"], { tone: "success" | "info" | "warning"; icon: typeof TrendingUp; label: string }> = {
+  rising: { tone: "success", icon: TrendingUp, label: "Rising momentum" },
+  stable: { tone: "info", icon: Activity, label: "Stable momentum" },
+  declining: { tone: "warning", icon: TrendingDown, label: "Declining momentum" },
+};
+
+function ExecutionTop({ execution, runMission }: { execution: ReturnType<typeof useExecution>; runMission: (id: string) => void }) {
+  const { momentum, dailyVictory, health, streaks, motivation } = execution;
+
+  return (
+    <div className="mb-6 space-y-4">
+      <div className="grid lg:grid-cols-3 gap-4">
+        <VictoryCard victory={dailyVictory} runMission={runMission} />
+        <div className="space-y-4">
+          <HealthCard health={health} />
+          <MomentumCard momentum={momentum} />
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <StreaksPanel streaks={streaks} className="lg:col-span-2" />
+        <MotivationPanel motivation={motivation} />
+      </div>
+    </div>
+  );
+}
+
+function VictoryCard({ victory, runMission }: { victory: DailyVictory | null; runMission: (id: string) => void }) {
+  return (
+    <div className="lg:col-span-2 relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="h-8 w-8 rounded-lg bg-primary/20 text-primary grid place-items-center">
+          <Trophy className="h-4 w-4" />
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.16em] font-semibold text-primary">Today's Victory</div>
+          <div className="text-xs text-muted-foreground">The single most important move right now</div>
+        </div>
+      </div>
+
+      {victory ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <span className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded ${
+              victory.priority === "critical" ? "bg-destructive/15 text-destructive" :
+              victory.priority === "high" ? "bg-warning/15 text-warning" : "bg-primary/15 text-primary"
+            }`}>{victory.priority}</span>
+            <span className="text-xs text-muted-foreground">{victory.subjectName}</span>
+            <span className="text-xs text-success font-mono">ROI {victory.roiScore}</span>
+          </div>
+          <h3 className="text-lg font-semibold tracking-tight">{victory.title}</h3>
+          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{victory.whyItMatters}</p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+            <VictoryStat icon={Clock} label="Time" value={`${victory.estimatedMinutes}m`} />
+            <VictoryStat icon={Sparkles} label="Benefit" value={victory.expectedBenefit} small />
+            <VictoryStat icon={ShieldAlert} label="Risk down" value={`-${victory.riskReduction}`} tone="success" />
+            <VictoryStat icon={GitBranch} label="Future" value={victory.futureImpact} small />
+          </div>
+
+          <button
+            onClick={() => runMission(victory.missionId)}
+            className="mt-4 inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            <Zap className="h-3.5 w-3.5" /> Do this now
+          </button>
+        </>
+      ) : (
+        <div className="text-sm text-muted-foreground py-8 text-center">
+          No mission outstanding — your queue is clear. The engine is recalibrating your next victory.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VictoryStat({ icon: Icon, label, value, tone, small }: { icon: typeof Clock; label: string; value: string; tone?: "success"; small?: boolean }) {
+  return (
+    <div className="rounded-lg bg-muted/40 border border-border/40 p-2.5">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
+        <Icon className="h-3 w-3" /> {label}
+      </div>
+      <div className={`${small ? "text-[11px] leading-snug" : "text-sm font-semibold"} ${tone === "success" ? "text-success" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+function HealthCard({ health }: { health: AcademicHealth }) {
+  const ringTone: Record<AcademicHealth["tone"], string> = {
+    success: "text-success", info: "text-info", warning: "text-warning", danger: "text-destructive",
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <HeartPulse className={`h-4 w-4 ${ringTone[health.tone]}`} />
+          <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Academic Health</span>
+        </div>
+        <span className={`text-[11px] font-semibold ${ringTone[health.tone]}`}>{health.label}</span>
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <span className={`text-4xl font-semibold tabular-nums ${ringTone[health.tone]}`}>{health.score}</span>
+        <span className="text-sm text-muted-foreground">/100</span>
+      </div>
+      <div className="mt-3"><MetricBar value={health.score} tone={health.tone === "danger" ? "danger" : health.tone === "warning" ? "warning" : health.tone === "success" ? "success" : "default"} /></div>
+      <p className="text-[11px] text-muted-foreground mt-2 leading-snug">{health.headline}</p>
+    </div>
+  );
+}
+
+function MomentumCard({ momentum }: { momentum: MomentumReport }) {
+  const t = trendTone[momentum.trend];
+  const Icon = t.icon;
+  const tcls = t.tone === "success" ? "text-success" : t.tone === "warning" ? "text-warning" : "text-info";
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${tcls}`} />
+          <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Momentum</span>
+        </div>
+        <span className={`text-[11px] font-semibold ${tcls}`}>{t.label}</span>
+      </div>
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Today</div>
+          <div className="text-2xl font-semibold tabular-nums">{momentum.dailyScore}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">This week</div>
+          <div className="text-2xl font-semibold tabular-nums flex items-center gap-1.5 justify-end">
+            {momentum.weeklyScore}
+            <DeltaPill value={momentum.trendDelta} />
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] text-muted-foreground mt-2 leading-snug">{momentum.headline}</p>
+    </div>
+  );
+}
+
+function StreaksPanel({ streaks, className }: { streaks: StreakReport[]; className?: string }) {
+  return (
+    <Panel title="Academic Streaks" description="Consistency that reflects real progress" className={className}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {streaks.map((s) => (
+          <div key={s.key} className={`rounded-lg border p-3 text-center ${s.active && s.days > 0 ? "border-warning/30 bg-warning/5" : "border-border/60 bg-card/50"}`} title={s.description}>
+            <Flame className={`h-4 w-4 mx-auto mb-1 ${s.active && s.days > 0 ? "text-warning" : "text-muted-foreground/40"}`} />
+            <div className="text-xl font-semibold tabular-nums">{s.days}</div>
+            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function MotivationPanel({ motivation }: { motivation: string[] }) {
+  return (
+    <Panel title="Motivation" description="Evidence-based, from your data">
+      <div className="space-y-2.5">
+        {motivation.map((m, i) => (
+          <div key={i} className="flex items-start gap-2 text-sm">
+            <Sparkles className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+            <span className="text-muted-foreground leading-snug">{m}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function ExecutionReview({ execution }: { execution: ReturnType<typeof useExecution> }) {
+  const { debrief, weeklyReview } = execution;
+  return (
+    <div className="grid lg:grid-cols-2 gap-4 mt-6">
+      <DebriefPanel debrief={debrief} />
+      <WeeklyReviewPanel review={weeklyReview} />
+    </div>
+  );
+}
+
+function DebriefPanel({ debrief }: { debrief: DailyDebrief }) {
+  return (
+    <Panel title="Daily Debrief" description="Your academic report for today">
+      <p className="text-sm leading-relaxed">{debrief.summary}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+        <DebriefStat label="Missions" value={debrief.missionsCompleted} />
+        <DebriefStat label="Mastery" value={`+${debrief.masteryGained}`} tone="success" />
+        <DebriefStat label="Risk down" value={`-${debrief.riskReduced}`} tone="success" />
+        <DebriefStat label="Minutes" value={debrief.timeInvested} />
+      </div>
+      <div className="mt-3 rounded-md bg-success/5 border border-success/15 px-3 py-2">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold text-success mb-0.5">
+          <CheckCircle2 className="h-3 w-3" /> Biggest achievement
+        </div>
+        <div className="text-xs text-muted-foreground">{debrief.biggestAchievement}</div>
+      </div>
+    </Panel>
+  );
+}
+
+function DebriefStat({ label, value, tone }: { label: string; value: string | number; tone?: "success" }) {
+  return (
+    <div className="rounded-lg bg-muted/40 p-2.5 text-center">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`text-lg font-semibold tabular-nums ${tone === "success" ? "text-success" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+function WeeklyReviewPanel({ review }: { review: WeeklyReview }) {
+  const sections: { title: string; items: string[]; icon: typeof Trophy; tone: string }[] = [
+    { title: "Wins", items: review.wins, icon: Trophy, tone: "text-success" },
+    { title: "Mistakes", items: review.mistakes, icon: AlertTriangle, tone: "text-warning" },
+    { title: "Opportunities", items: review.opportunities, icon: Lightbulb, tone: "text-info" },
+    { title: "Strategic priorities", items: review.strategicPriorities, icon: Crosshair, tone: "text-primary" },
+  ];
+  return (
+    <Panel title="Weekly Review" description={`${review.improvedSummary} ${review.declinedSummary}`}>
+      <div className="space-y-3.5">
+        {sections.map((s) => {
+          const Icon = s.icon;
+          return (
+            <div key={s.title}>
+              <div className={`flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold mb-1 ${s.tone}`}>
+                <Icon className="h-3 w-3" /> {s.title}
+              </div>
+              <ul className="space-y-0.5">
+                {s.items.slice(0, 3).map((it, i) => (
+                  <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
+                    <span className="text-muted-foreground/50 mt-px">·</span>{it}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+
 function Metric({ label, value, delta, invert }: { label: string; value: number; delta?: number; invert?: boolean }) {
   return (
     <div className="rounded-md bg-muted/40 py-2">
