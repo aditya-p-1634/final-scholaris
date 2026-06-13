@@ -27,6 +27,8 @@ export interface SubjectMeta {
   daysToAssessment?: number;
   hoursThisWeek: number;
   baselineMastery: number; // snapshot for trend calc
+  examWeight: number; // 0–1: importance of upcoming exam
+  strategicValue: number; // 0–100: long-term value within the program
 }
 
 export interface ConceptCore {
@@ -41,13 +43,78 @@ export interface ConceptCore {
   decayRate: number; // per day
   daysSinceReview: number;
   reviewCount: number;
+  // Advanced memory signal — updated by sessions/assessments
+  successfulRecalls: number;
+  failedRecalls: number;
+  assessmentAttempts: number;
+  assessmentCorrect: number;
+}
+
+// ---------------- Knowledge graph (prerequisites) ----------------
+// Concept A is a prerequisite of Concept B if B depends on A's mastery.
+// Drives dependency-aware risk propagation, bottleneck detection,
+// and critical-path analysis.
+export const PREREQUISITES: Record<string, string[]> = {
+  "c-1": [],
+  "c-2": ["c-1"],                 // Stereochemistry depends on SN2 mechanism
+  "c-11": ["c-1"],                // Diels-Alder depends on SN2 / arrow-pushing
+  "c-3": [],
+  "c-4": ["c-3"],                 // Gram-Schmidt depends on eigenstructure
+  "c-12": ["c-3", "c-4"],         // SVD depends on eigen + orthogonality
+  "c-5": [],
+  "c-6": ["c-5"],                 // Na/K pump after metabolism foundation
+  "c-7": [],
+  "c-9": [],                      // Hilbert spaces
+  "c-8": ["c-9", "c-3"],          // Schrödinger needs Hilbert + linear algebra
+  "c-10": [],
+};
+
+export interface ExplainBlock {
+  reason: string;
+  factors: { label: string; weight: number; value: string }[];
+  confidence: number; // 0–100
+  expectedImpact?: string;
+}
+
+export interface RoiBreakdown {
+  examWeight: number;
+  dependencyUnlocks: number;
+  futureValue: number;
+  strategicImportance: number;
+  learningCost: number;
+  currentWeakness: number;
+  total: number;
+}
+
+export interface MemoryProfile {
+  stability: number;            // 0–100
+  recallConfidence: number;     // 0–100
+  reviewSuccessRate: number;    // 0–100
+  recoverySpeed: number;        // mastery gained per recovery session
+  retentionReliability: number; // 0–100
+  predictedForgettingDays: number;
+  predictedForgettingDate: string;
 }
 
 export interface DerivedConcept extends ConceptCore {
   roi: number;
   risk: number;
+  baseRisk: number;
+  propagatedRisk: number;
   status: ConceptStatus;
   lastReviewed: string;
+  // Knowledge graph
+  prerequisiteIds: string[];
+  dependentIds: string[];
+  unlockPotential: number;       // 0–100
+  bottleneckScore: number;       // 0–100
+  isCriticalPath: boolean;
+  // Advanced memory
+  memory: MemoryProfile;
+  // Advanced ROI
+  roiBreakdown: RoiBreakdown;
+  // Explainability
+  explain: { risk: ExplainBlock; roi: ExplainBlock };
 }
 
 export interface DerivedSubject {
@@ -67,6 +134,10 @@ export interface DerivedSubject {
   hoursThisWeek: number;
   nextAssessment?: string;
   daysToAssessment?: number;
+  examWeight: number;
+  dependencyHealth: number;
+  predictedScore: { low: number; high: number };
+  readiness: number;
 }
 
 export interface SessionLogEntry {
@@ -82,6 +153,12 @@ export interface SessionLogEntry {
   dateLabel: string;
 }
 
+export interface QuestionOutcome {
+  conceptId: string;
+  correct: boolean;
+  difficulty?: number; // 1–10, default 5
+}
+
 export interface AssessmentLogEntry {
   id: string;
   subjectId: string;
@@ -90,6 +167,7 @@ export interface AssessmentLogEntry {
   predicted: number;
   actual: number;
   timestamp: number;
+  questions?: QuestionOutcome[];
 }
 
 export interface DerivedMission {
@@ -106,6 +184,11 @@ export interface DerivedMission {
   reason: string;
   dueBy?: string;
   completed: boolean;
+  // Explainability
+  evidence: string[];
+  confidence: number;
+  expectedImpact: string;
+  riskReduction: number; // 0–100 pts of risk projected to be removed
 }
 
 export type RecommendationCategory =
@@ -124,6 +207,9 @@ export interface DerivedRecommendation {
   minutes: number;
   subjectId?: string;
   conceptId?: string;
+  // Explainability — top contributing factors with weighted scores.
+  factors: { label: string; weight: number; value: string }[];
+  unlocks: string[]; // names of downstream concepts this would unlock
 }
 
 export type IncidentCategory =
@@ -201,6 +287,8 @@ interface State {
   runSession: (input: { conceptId: string; type?: SessionLogEntry["type"]; minutes?: number }) => SessionLogEntry | null;
   runMission: (missionId: string) => void;
   recordAssessment: (input: { subjectId: string; title: string; actual: number }) => void;
+  // Question-level (concept-aware) assessment intake.
+  recordQuestionAssessment: (input: { subjectId: string; title: string; questions: QuestionOutcome[] }) => AssessmentLogEntry | null;
   advanceDay: (n?: number) => void;
   resetIntelligence: () => void;
 }
@@ -219,22 +307,35 @@ function parseLastReviewed(s: string): number {
   return m ? parseInt(m[1], 10) : 14;
 }
 
-function seedState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "advanceDay" | "resetIntelligence"> {
+// Per-subject strategic value heuristic (long-term importance within program).
+const SUBJECT_STRATEGIC_VALUE: Record<string, number> = {
+  "sub-1": 88, "sub-2": 92, "sub-3": 70, "sub-4": 64, "sub-5": 95, "sub-6": 55,
+};
+
+function seedState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "recordQuestionAssessment" | "advanceDay" | "resetIntelligence"> {
   const subjectsById: Record<string, SubjectMeta> = {};
   for (const s of seedSubjects) {
+    const daysTo = s.nextAssessment ? Math.max(0, daysBetween(s.nextAssessment)) : undefined;
     subjectsById[s.id] = {
       id: s.id,
       name: s.name,
       code: s.code,
       color: s.color,
       nextAssessment: s.nextAssessment,
-      daysToAssessment: s.nextAssessment ? Math.max(0, daysBetween(s.nextAssessment)) : undefined,
+      daysToAssessment: daysTo,
       hoursThisWeek: s.hoursThisWeek,
-      baselineMastery: s.mastery - s.trend, // recover the "1 week ago" snapshot
+      baselineMastery: s.mastery - s.trend,
+      // Exams within a week weigh heavily; further-out exams less so.
+      examWeight: daysTo === undefined ? 0.25 : clamp(1 - daysTo / 30, 0.2, 1) as number,
+      strategicValue: SUBJECT_STRATEGIC_VALUE[s.id] ?? 60,
     };
   }
   const conceptsById: Record<string, ConceptCore> = {};
   for (const c of seedConcepts) {
+    // Seed recall history from existing review count so memory metrics
+    // have something to work with on first load.
+    const successes = Math.max(0, Math.round(c.reviewCount * (c.mastery / 100)));
+    const failures = Math.max(0, c.reviewCount - successes);
     conceptsById[c.id] = {
       id: c.id,
       name: c.name,
@@ -247,6 +348,10 @@ function seedState(): Omit<State, "version" | "runSession" | "runMission" | "rec
       decayRate: c.decayRate,
       daysSinceReview: parseLastReviewed(c.lastReviewed),
       reviewCount: c.reviewCount,
+      successfulRecalls: successes,
+      failedRecalls: failures,
+      assessmentAttempts: 0,
+      assessmentCorrect: 0,
     };
   }
   // Seed a couple of historical sessions and one underperforming assessment
@@ -403,6 +508,55 @@ export const useIntelligenceStore = create<State>((set, get) => ({
     set((st) => ({ version: st.version + 1, conceptsById: concepts, subjectsById: subjects }));
   },
 
+  recordQuestionAssessment: ({ subjectId, title, questions }) => {
+    if (!questions.length) return null;
+    const subject = get().subjectsById[subjectId];
+    if (!subject) return null;
+    const conceptsMap = { ...get().conceptsById };
+
+    // Per-question concept-level mastery & memory adjustment.
+    // Correct: +mastery, +memory, +recall counters.
+    // Incorrect: -mastery, -memory, +failed counters, +risk via memory drop.
+    for (const q of questions) {
+      const c = conceptsMap[q.conceptId];
+      if (!c) continue;
+      const diff = q.difficulty ?? 5;
+      const masteryDelta = q.correct ? 4 + diff * 0.6 : -(5 + diff * 0.9);
+      const memoryDelta = q.correct ? 5 + diff * 0.4 : -(7 + diff * 0.6);
+      conceptsMap[q.conceptId] = {
+        ...c,
+        mastery: Math.round(clamp(c.mastery + masteryDelta)),
+        memoryStrength: Math.round(clamp(c.memoryStrength + memoryDelta)),
+        assessmentAttempts: c.assessmentAttempts + 1,
+        assessmentCorrect: c.assessmentCorrect + (q.correct ? 1 : 0),
+        successfulRecalls: c.successfulRecalls + (q.correct ? 1 : 0),
+        failedRecalls: c.failedRecalls + (q.correct ? 0 : 1),
+        daysSinceReview: 0,
+      };
+    }
+
+    const actual = Math.round((questions.filter((q) => q.correct).length / questions.length) * 100);
+    const predicted = computeSubjectReadiness({ conceptsById: conceptsMap, subjectsById: get().subjectsById }, subjectId);
+
+    const entry: AssessmentLogEntry = {
+      id: `qa-${Date.now()}`,
+      subjectId,
+      subjectName: subject.name,
+      title,
+      predicted,
+      actual,
+      timestamp: Date.now(),
+      questions,
+    };
+
+    set((s) => ({
+      version: s.version + 1,
+      conceptsById: conceptsMap,
+      assessments: [entry, ...s.assessments].slice(0, 20),
+    }));
+    return entry;
+  },
+
   resetIntelligence: () => set(() => ({ version: 0, ...seedState() })),
 }));
 
@@ -426,33 +580,206 @@ function lastReviewedLabel(days: number) {
   return `${days}d ago`;
 }
 
-function conceptRisk(c: ConceptCore): number {
-  return Math.round(clamp(
+// Base risk before dependency propagation.
+function baseConceptRisk(c: ConceptCore): number {
+  return clamp(
     c.importance * 2.4 +
     (100 - c.mastery) * 0.32 +
     (100 - c.memoryStrength) * 0.26 +
     Math.min(c.daysSinceReview * 1.4, 22) -
     14
-  ));
+  );
 }
 
-function conceptRoi(c: ConceptCore): number {
-  return Math.round(clamp(
-    c.importance * 6.5 +
-    c.mastery * 0.22 +
-    18 -
-    c.daysSinceReview * 0.25
+// Advanced memory profile derived from session + assessment history.
+function deriveMemoryProfile(c: ConceptCore): MemoryProfile {
+  const totalRecalls = c.successfulRecalls + c.failedRecalls;
+  const reviewSuccessRate = totalRecalls > 0
+    ? Math.round((c.successfulRecalls / totalRecalls) * 100)
+    : Math.round(clamp(c.memoryStrength));
+  // Stability ≈ inverse of decay rate, modulated by review depth.
+  const stability = Math.round(clamp(
+    (1 - Math.min(c.decayRate, 0.4) / 0.4) * 70 +
+    Math.min(c.reviewCount, 20) * 1.5
   ));
+  const recallConfidence = Math.round(clamp(
+    c.memoryStrength * 0.55 + reviewSuccessRate * 0.35 + Math.min(c.reviewCount, 15) * 0.6
+  ));
+  // Recovery speed: avg mastery gained per recovery session (modeled).
+  const recoverySpeed = Math.round(clamp(
+    12 + (100 - c.mastery) * 0.10 - c.decayRate * 35,
+    2, 30
+  ));
+  const retentionReliability = Math.round(clamp(
+    stability * 0.45 + reviewSuccessRate * 0.35 + recallConfidence * 0.20
+  ));
+  // Predicted days until memory drops below recall threshold (30/100).
+  // memoryStrength * e^(-decay * days) = 30 → days = ln(memory/30)/decay
+  const safe = Math.max(31, c.memoryStrength);
+  const predictedForgettingDays = Math.max(
+    0,
+    Math.round(Math.log(safe / 30) / Math.max(c.decayRate, 0.04))
+  );
+  const date = new Date(Date.now() + predictedForgettingDays * 86400000);
+  return {
+    stability,
+    recallConfidence,
+    reviewSuccessRate,
+    recoverySpeed,
+    retentionReliability,
+    predictedForgettingDays,
+    predictedForgettingDate: date.toISOString().slice(0, 10),
+  };
 }
 
-export function deriveConcepts(s: Pick<State, "conceptsById">): DerivedConcept[] {
-  return Object.values(s.conceptsById).map((c) => ({
-    ...c,
-    roi: conceptRoi(c),
-    risk: conceptRisk(c),
-    status: statusFromMastery(c.mastery),
-    lastReviewed: lastReviewedLabel(c.daysSinceReview),
-  }));
+// Multi-factor ROI breakdown — each factor contributes to total ROI.
+function deriveRoiBreakdown(
+  c: ConceptCore,
+  subjMeta: SubjectMeta | undefined,
+  dependentCount: number,
+  prerequisiteHealthGap: number,
+): RoiBreakdown {
+  const examWeight = Math.round(clamp((subjMeta?.examWeight ?? 0.3) * 100));
+  // Each unlocked dependent compounds future returns.
+  const dependencyUnlocks = Math.round(clamp(dependentCount * 14 + prerequisiteHealthGap * 0.4, 0, 100));
+  const futureValue = Math.round(clamp((subjMeta?.strategicValue ?? 60) * 0.7 + c.importance * 3));
+  const strategicImportance = Math.round(clamp(c.importance * 9 + (subjMeta?.strategicValue ?? 60) * 0.15));
+  // Lower learning cost = higher ROI contribution. Cost rises with decay & weakness.
+  const learningCost = Math.round(clamp(
+    (100 - c.mastery) * 0.4 + c.decayRate * 80 + Math.min(c.daysSinceReview, 30) * 0.6
+  ));
+  const currentWeakness = Math.round(clamp((100 - c.mastery) * 0.6 + (100 - c.memoryStrength) * 0.4));
+  const total = Math.round(clamp(
+    examWeight * 0.18 +
+    dependencyUnlocks * 0.16 +
+    futureValue * 0.16 +
+    strategicImportance * 0.18 +
+    currentWeakness * 0.18 -
+    learningCost * 0.10 + 22
+  ));
+  return { examWeight, dependencyUnlocks, futureValue, strategicImportance, learningCost, currentWeakness, total };
+}
+
+export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">): DerivedConcept[] {
+  const raw = Object.values(s.conceptsById);
+
+  // Build forward (prereq) and reverse (dependent) maps.
+  const dependents: Record<string, string[]> = {};
+  for (const c of raw) {
+    const prereqs = PREREQUISITES[c.id] ?? [];
+    for (const p of prereqs) (dependents[p] ||= []).push(c.id);
+  }
+
+  const byId = new Map(raw.map((c) => [c.id, c]));
+
+  // Pass 1: base signals + memory + ROI (independent of propagation).
+  const intermediate = raw.map((c) => {
+    const prereqIds = PREREQUISITES[c.id] ?? [];
+    const dependentIds = dependents[c.id] ?? [];
+    const subjMeta = s.subjectsById[c.subjectId];
+    const memory = deriveMemoryProfile(c);
+    const prereqGap = prereqIds.reduce((acc, pid) => {
+      const p = byId.get(pid);
+      if (!p) return acc;
+      return acc + Math.max(0, 100 - p.mastery) + Math.max(0, 100 - p.memoryStrength);
+    }, 0);
+    const roiBreakdown = deriveRoiBreakdown(c, subjMeta, dependentIds.length, prereqGap);
+    const baseRisk = baseConceptRisk(c);
+    return { c, prereqIds, dependentIds, subjMeta, memory, roiBreakdown, baseRisk, prereqGap };
+  });
+
+  // Pass 2: propagate risk upward → downward. Weak prerequisites
+  // increase a concept's effective risk because future work on this
+  // concept cannot stabilize without the foundation.
+  const baseRiskMap = new Map(intermediate.map((x) => [x.c.id, x.baseRisk]));
+  const propagated = intermediate.map((x) => {
+    const upstreamPressure = x.prereqIds.reduce((acc, pid) => {
+      const pBase = baseRiskMap.get(pid) ?? 0;
+      const p = byId.get(pid);
+      if (!p) return acc;
+      // Each weak prereq adds 25% of its own risk + a memory/mastery deficit term.
+      return acc + pBase * 0.25 + (100 - p.mastery) * 0.10 + (100 - p.memoryStrength) * 0.08;
+    }, 0);
+    const propagatedRisk = clamp(x.baseRisk + upstreamPressure * 0.55);
+    return { ...x, propagatedRisk };
+  });
+
+  // Pass 3: bottleneck & critical path scoring.
+  // Bottleneck = important + weak + many dependents.
+  // Critical path = bottleneck above a threshold OR upstream of a high-risk leaf.
+  const enriched = propagated.map((x) => {
+    const { c } = x;
+    const bottleneckScore = clamp(
+      c.importance * 5 +
+      x.dependentIds.length * 12 +
+      (100 - c.mastery) * 0.25
+    );
+    const unlockPotential = clamp(
+      x.dependentIds.length * 18 +
+      x.roiBreakdown.dependencyUnlocks * 0.4 +
+      c.importance * 3
+    );
+    const isCriticalPath = bottleneckScore >= 55 && x.propagatedRisk >= 45;
+
+    const status = statusFromMastery(c.mastery);
+    const lastReviewed = lastReviewedLabel(c.daysSinceReview);
+
+    // Explainability for risk and ROI.
+    const explainRisk: ExplainBlock = {
+      reason: x.propagatedRisk >= 65
+        ? `${c.name} is high-risk because importance, decay, and ${x.prereqIds.length ? "weak prerequisites" : "memory drop"} are compounding.`
+        : x.propagatedRisk >= 40
+        ? `${c.name} is at moderate risk — base signals are stable but ${x.prereqIds.length ? "upstream concepts are softening" : "review cadence is slipping"}.`
+        : `${c.name} risk is contained — review cadence and mastery are aligned.`,
+      factors: [
+        { label: "Importance", weight: 0.24, value: `${c.importance}/10` },
+        { label: "Mastery gap", weight: 0.22, value: `${100 - c.mastery}/100` },
+        { label: "Memory gap", weight: 0.18, value: `${100 - c.memoryStrength}/100` },
+        { label: "Days since review", weight: 0.14, value: `${c.daysSinceReview}d` },
+        { label: "Upstream pressure", weight: 0.22, value: `${Math.round(x.propagatedRisk - x.baseRisk)} pts` },
+      ],
+      confidence: Math.round(clamp(70 + c.reviewCount * 1.6 + (c.assessmentAttempts > 0 ? 8 : 0))),
+      expectedImpact: `A focused recovery would drop risk by ~${Math.round(x.propagatedRisk * 0.35)} pts.`,
+    };
+
+    const explainRoi: ExplainBlock = {
+      reason: x.roiBreakdown.total >= 80
+        ? `${c.name} compounds: it unlocks ${x.dependentIds.length} downstream concept${x.dependentIds.length === 1 ? "" : "s"} and carries strategic weight in ${c.subjectName}.`
+        : x.roiBreakdown.total >= 60
+        ? `${c.name} returns above average — strategic value and current weakness combine into a strong target.`
+        : `${c.name} returns are moderate — high mastery means marginal gain is limited.`,
+      factors: [
+        { label: "Exam weight", weight: 0.18, value: `${x.roiBreakdown.examWeight}/100` },
+        { label: "Dependency unlocks", weight: 0.16, value: `${x.roiBreakdown.dependencyUnlocks}/100` },
+        { label: "Future value", weight: 0.16, value: `${x.roiBreakdown.futureValue}/100` },
+        { label: "Strategic importance", weight: 0.18, value: `${x.roiBreakdown.strategicImportance}/100` },
+        { label: "Current weakness", weight: 0.18, value: `${x.roiBreakdown.currentWeakness}/100` },
+        { label: "Learning cost", weight: -0.10, value: `${x.roiBreakdown.learningCost}/100` },
+      ],
+      confidence: Math.round(clamp(75 + (x.subjMeta?.examWeight ?? 0.3) * 20)),
+      expectedImpact: `~+${Math.round(x.roiBreakdown.total / 18)}% subject mastery per focused hour.`,
+    };
+
+    return {
+      ...c,
+      roi: x.roiBreakdown.total,
+      risk: Math.round(x.propagatedRisk),
+      baseRisk: Math.round(x.baseRisk),
+      propagatedRisk: Math.round(x.propagatedRisk),
+      status,
+      lastReviewed,
+      prerequisiteIds: x.prereqIds,
+      dependentIds: x.dependentIds,
+      unlockPotential: Math.round(unlockPotential),
+      bottleneckScore: Math.round(bottleneckScore),
+      isCriticalPath,
+      memory: x.memory,
+      roiBreakdown: x.roiBreakdown,
+      explain: { risk: explainRisk, roi: explainRoi },
+    } satisfies DerivedConcept;
+  });
+
+  return enriched;
 }
 
 export function deriveSubjects(s: Pick<State, "conceptsById" | "subjectsById">): DerivedSubject[] {
@@ -470,6 +797,13 @@ export function deriveSubjects(s: Pick<State, "conceptsById" | "subjectsById">):
       risk >= 70 ? "critical" :
       risk >= 50 || mastery < 50 ? "at-risk" : "stable";
     const trend = mastery - meta.baselineMastery;
+    // Dependency health = how well prerequisite chains hold for THIS subject.
+    const dependencyHealth = subjConcepts.length === 0 ? 100 : Math.round(clamp(
+      100 - subjConcepts.reduce((a, c) => a + (c.propagatedRisk - c.baseRisk), 0) / subjConcepts.length * 1.4
+    ));
+    const readiness = Math.round(clamp(mastery * 0.55 + memory * 0.35 + (100 - risk) * 0.10));
+    const predictedLow = Math.max(35, readiness - 8);
+    const predictedHigh = Math.min(99, readiness + 6);
     return {
       id: meta.id,
       name: meta.name,
@@ -481,11 +815,52 @@ export function deriveSubjects(s: Pick<State, "conceptsById" | "subjectsById">):
       hoursThisWeek: meta.hoursThisWeek,
       nextAssessment: meta.nextAssessment,
       daysToAssessment: meta.daysToAssessment,
-    };
+      examWeight: meta.examWeight,
+      dependencyHealth,
+      readiness,
+      predictedScore: { low: predictedLow, high: predictedHigh },
+    } satisfies Omit<DerivedSubject, "rank">;
   });
   const ranked = [...raw].sort((a, b) => b.mastery - a.mastery);
   return raw.map((r) => ({ ...r, rank: ranked.findIndex((x) => x.id === r.id) + 1 }));
 }
+
+// ---------------- Graph / dependency analytics ----------------
+
+export interface BottleneckEntry {
+  conceptId: string;
+  conceptName: string;
+  subjectName: string;
+  bottleneckScore: number;
+  dependentCount: number;
+  mastery: number;
+  reason: string;
+}
+
+export function deriveBottlenecks(s: Pick<State, "conceptsById" | "subjectsById">): BottleneckEntry[] {
+  const concepts = deriveConcepts(s);
+  return concepts
+    .filter((c) => c.dependentIds.length > 0 && c.bottleneckScore >= 45)
+    .sort((a, b) => b.bottleneckScore - a.bottleneckScore)
+    .slice(0, 8)
+    .map((c) => ({
+      conceptId: c.id,
+      conceptName: c.name,
+      subjectName: c.subjectName,
+      bottleneckScore: c.bottleneckScore,
+      dependentCount: c.dependentIds.length,
+      mastery: c.mastery,
+      reason: `${c.dependentIds.length} downstream concept${c.dependentIds.length === 1 ? "" : "s"} are gated by this node — mastery ${c.mastery}/100.`,
+    }));
+}
+
+export function deriveCriticalPath(s: Pick<State, "conceptsById" | "subjectsById">): DerivedConcept[] {
+  return deriveConcepts(s)
+    .filter((c) => c.isCriticalPath)
+    .sort((a, b) => b.bottleneckScore + b.propagatedRisk - (a.bottleneckScore + a.propagatedRisk))
+    .slice(0, 6);
+}
+
 
 export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | "completedMissionIds">): DerivedMission[] {
   const concepts = deriveConcepts(s);
@@ -537,6 +912,27 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
 
     if (!type) continue;
     const id = `m-${type}-${c.id}`;
+    const riskReduction = Math.round(
+      type === "recovery" ? c.propagatedRisk * 0.55
+      : type === "reinforcement" ? c.propagatedRisk * 0.30
+      : type === "expansion" ? c.unlockPotential * 0.20
+      : c.propagatedRisk * 0.18
+    );
+    const evidence: string[] = [
+      `Mastery ${c.mastery}/100 · memory ${c.memoryStrength}/100 · risk ${c.risk}`,
+      `Importance ${c.importance}/10 · last reviewed ${c.lastReviewed}`,
+    ];
+    if (c.prerequisiteIds.length) evidence.push(`${c.prerequisiteIds.length} prerequisite${c.prerequisiteIds.length === 1 ? "" : "s"} influencing this concept`);
+    if (c.dependentIds.length) evidence.push(`Unlocks ${c.dependentIds.length} downstream concept${c.dependentIds.length === 1 ? "" : "s"}`);
+    if (examSoon) evidence.push(`Exam in ${subj!.daysToAssessment}d · readiness ${subj!.readiness}/100`);
+    const confidence = Math.round(clamp(
+      72 + c.reviewCount * 1.4 + (c.assessmentAttempts > 0 ? 8 : 0) + (examSoon ? 6 : 0)
+    ));
+    const expectedImpact =
+      type === "recovery" ? `+${Math.round((100 - c.mastery) / 4)}% mastery · -${riskReduction} risk · +${c.memory.recoverySpeed} memory`
+      : type === "reinforcement" ? `+${Math.round(c.memory.recoverySpeed * 0.7)} memory · -${riskReduction} risk`
+      : type === "expansion" ? `Unlocks ${c.dependentIds.length} concept${c.dependentIds.length === 1 ? "" : "s"} · +ROI compounding`
+      : `Preserves mastery streak · -${riskReduction} forgetting probability`;
     out.push({
       id, title, description, type, priority,
       subjectId: c.subjectId, subjectName: c.subjectName,
@@ -546,6 +942,10 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
       reason,
       dueBy: priority === "critical" ? "today" : examSoon ? "tomorrow" : undefined,
       completed: completed.has(id),
+      evidence,
+      confidence,
+      expectedImpact,
+      riskReduction,
     });
   }
 
@@ -555,6 +955,7 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
     const stale = subConcepts.filter((c) => c.daysSinceReview > 9).length;
     if (stale >= 3) {
       const id = `m-assessment-${sub.id}`;
+      const targets = subConcepts.slice(0, 6);
       out.push({
         id,
         type: "assessment",
@@ -563,11 +964,19 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
         priority: sub.daysToAssessment !== undefined && sub.daysToAssessment <= 5 ? "high" : "medium",
         subjectId: sub.id,
         subjectName: sub.name,
-        conceptIds: subConcepts.slice(0, 6).map((c) => c.id),
+        conceptIds: targets.map((c) => c.id),
         estimatedMinutes: 15,
         roiScore: 70 + (sub.risk > 50 ? 10 : 0),
         reason: `${stale} concepts not assessed in 9+ days`,
         completed: completed.has(id),
+        evidence: [
+          `${stale} concepts last assessed > 9 days ago`,
+          `Subject readiness ${sub.readiness}/100 · predicted band ${sub.predictedScore.low}–${sub.predictedScore.high}%`,
+          `Dependency health ${sub.dependencyHealth}/100`,
+        ],
+        confidence: 80,
+        expectedImpact: `Tightens prediction band by ±${Math.round(stale / 2)}% · recalibrates ${targets.length} concepts`,
+        riskReduction: Math.round(sub.risk * 0.15),
       });
     }
   }
@@ -594,36 +1003,37 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       m.type === "expansion" ? "expansion" :
       m.type === "assessment" ? "assessment" : "strategic";
     const urgency = m.priority;
-    const confidence = Math.round(clamp(70 + (c?.importance ?? 7) * 2 + (subj && subj.risk > 60 ? 8 : 0)));
     const impact = m.roiScore;
-    const evidence: string[] = [];
-    if (c) {
-      evidence.push(`Concept mastery ${c.mastery}/100, memory ${c.memoryStrength}/100`);
-      evidence.push(`Last reviewed ${c.lastReviewed} · ${c.reviewCount} reviews`);
-      evidence.push(`Decay rate ${c.decayRate.toFixed(2)} · importance ${c.importance}/10`);
+    // Pull live explanation factors from the concept's explain block.
+    const factors = c
+      ? (cat === "recovery" || cat === "assessment" ? c.explain.risk.factors : c.explain.roi.factors)
+      : [];
+    const evidence: string[] = [...m.evidence];
+    if (c?.dependentIds.length) {
+      const downstream = concepts
+        .filter((x) => c.dependentIds.includes(x.id))
+        .map((x) => x.name);
+      if (downstream.length) evidence.push(`Unlocks: ${downstream.slice(0, 3).join(", ")}${downstream.length > 3 ? "…" : ""}`);
     }
-    if (subj?.daysToAssessment !== undefined) evidence.push(`Next ${subj.name} assessment in ${subj.daysToAssessment}d`);
+    if (subj?.daysToAssessment !== undefined) evidence.push(`${subj.name} exam in ${subj.daysToAssessment}d · readiness ${subj.readiness}/100`);
+    const unlocks = c
+      ? concepts.filter((x) => c.dependentIds.includes(x.id)).map((x) => x.name)
+      : [];
     out.push({
       id: `r-${m.id}`,
       title: m.title,
       category: cat,
       reason: m.reason,
       evidence,
-      expectedBenefit: cat === "recovery"
-        ? `+${Math.round(m.roiScore / 12)} readiness · +${Math.round(m.roiScore / 18)}% subject mastery`
-        : cat === "reinforcement"
-        ? `+${Math.round(m.roiScore / 14)}% concept memory · prevent recovery next week`
-        : cat === "expansion"
-        ? `+1 mastered node · compounding ROI`
-        : cat === "assessment"
-        ? `Recalibrate ${m.conceptIds.length} concept signals`
-        : `Lower 30-day risk projection`,
-      confidence,
+      expectedBenefit: m.expectedImpact,
+      confidence: m.confidence,
       impact,
       urgency,
       minutes: m.estimatedMinutes,
       subjectId: m.subjectId,
       conceptId: m.conceptIds[0],
+      factors,
+      unlocks,
     });
   }
 
@@ -637,9 +1047,9 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       category: "strategic",
       reason: `${dominant.name} is in dominant zone (${dominant.mastery} mastery, low decay). ${critical.name} is critical with risk ${critical.risk}.`,
       evidence: [
-        `${dominant.name}: mastery ${dominant.mastery}, risk ${dominant.risk}`,
-        `${critical.name}: mastery ${critical.mastery}, risk ${critical.risk}`,
-        critical.daysToAssessment !== undefined ? `Critical exam in ${critical.daysToAssessment}d` : `No exam scheduled — but risk is compounding`,
+        `${dominant.name}: mastery ${dominant.mastery}, risk ${dominant.risk}, dependency health ${dominant.dependencyHealth}`,
+        `${critical.name}: mastery ${critical.mastery}, risk ${critical.risk}, dependency health ${critical.dependencyHealth}`,
+        critical.daysToAssessment !== undefined ? `Critical exam in ${critical.daysToAssessment}d (readiness ${critical.readiness}/100)` : `No exam scheduled — but risk is compounding`,
       ],
       expectedBenefit: `-${Math.round(critical.risk / 6)} risk on ${critical.code} · negligible ${dominant.code} decay`,
       confidence: 86,
@@ -647,6 +1057,13 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       urgency: "high",
       minutes: 120,
       subjectId: critical.id,
+      factors: [
+        { label: "Critical-subject risk", weight: 0.35, value: `${critical.risk}/100` },
+        { label: "Dominant-subject buffer", weight: 0.25, value: `${dominant.mastery}/100` },
+        { label: "Exam proximity", weight: 0.25, value: critical.daysToAssessment !== undefined ? `${critical.daysToAssessment}d` : "n/a" },
+        { label: "Dependency health gap", weight: 0.15, value: `${dominant.dependencyHealth - critical.dependencyHealth} pts` },
+      ],
+      unlocks: [],
     });
   }
 
@@ -955,6 +1372,8 @@ interface Derived {
   masteryTrend: { day: string; mastery: number; memory: number; roi: number }[];
   sessions: SessionLogEntry[];
   assessments: AssessmentLogEntry[];
+  bottlenecks: BottleneckEntry[];
+  criticalPath: DerivedConcept[];
 }
 
 let cache: { version: number; data: Derived } | null = null;
@@ -974,6 +1393,8 @@ function getDerived(): Derived {
     masteryTrend: deriveMasteryTrend(state),
     sessions: state.sessions,
     assessments: state.assessments,
+    bottlenecks: deriveBottlenecks(state),
+    criticalPath: deriveCriticalPath(state),
   };
   cache = { version: state.version, data };
   return data;
@@ -993,6 +1414,7 @@ export function useIntelligenceActions() {
     runSession: useIntelligenceStore.getState().runSession,
     runMission: useIntelligenceStore.getState().runMission,
     recordAssessment: useIntelligenceStore.getState().recordAssessment,
+    recordQuestionAssessment: useIntelligenceStore.getState().recordQuestionAssessment,
     advanceDay: useIntelligenceStore.getState().advanceDay,
     reset: useIntelligenceStore.getState().resetIntelligence,
   };
