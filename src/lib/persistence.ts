@@ -3,6 +3,7 @@
 // this module only moves raw concept-level state and activity logs.
 
 import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_ASSESSMENT_WEIGHTS } from "./intelligence";
 import type {
   ConceptCore,
   SubjectMeta,
