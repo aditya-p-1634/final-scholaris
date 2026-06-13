@@ -95,6 +95,14 @@ export async function loadWorkspace(userId: string): Promise<WorkspacePayload> {
       baselineMastery: s.baseline_mastery,
       examWeight: Number(s.exam_weight),
       strategicValue: s.strategic_value,
+      credits: Number((s as Record<string, unknown>).credits ?? 3),
+      assessmentWeights: {
+        midterm: Number((s as Record<string, unknown>).midterm_weight ?? DEFAULT_ASSESSMENT_WEIGHTS.midterm),
+        final: Number((s as Record<string, unknown>).final_weight ?? DEFAULT_ASSESSMENT_WEIGHTS.final),
+        assignment: Number((s as Record<string, unknown>).assignment_weight ?? DEFAULT_ASSESSMENT_WEIGHTS.assignment),
+        lab: Number((s as Record<string, unknown>).lab_weight ?? DEFAULT_ASSESSMENT_WEIGHTS.lab),
+        project: Number((s as Record<string, unknown>).project_weight ?? DEFAULT_ASSESSMENT_WEIGHTS.project),
+      },
     };
   }
 
