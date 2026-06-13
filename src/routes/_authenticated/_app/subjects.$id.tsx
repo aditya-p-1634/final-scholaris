@@ -85,14 +85,22 @@ function SubjectIntelligence() {
     forgotten: subjectConcepts.filter((c) => c.status === "forgotten").length,
   };
 
+  // Graph-derived intelligence: real bottlenecks, structural foundations, critical-path nodes.
   const bottlenecks = [...subjectConcepts]
-    .sort((a, b) => b.importance * (100 - b.mastery) - a.importance * (100 - a.mastery))
+    .filter((c) => c.isBottleneck)
+    .sort((a, b) => b.bottleneckScore - a.bottleneckScore)
     .slice(0, 4);
 
   const foundation = [...subjectConcepts]
-    .filter((c) => c.importance >= 8)
-    .sort((a, b) => b.importance - a.importance)
+    .filter((c) => c.downstreamCount > 0)
+    .sort((a, b) => b.structuralImportance - a.structuralImportance)
     .slice(0, 4);
+
+  const criticalConcepts = [...subjectConcepts]
+    .sort((a, b) => b.criticalPathScore - a.criticalPathScore)
+    .slice(0, 4);
+
+  const structuralWeaknesses = subjectConcepts.filter((c) => c.structuralRisk >= 8).length;
 
   const readiness = computeSubjectReadiness(useIntelligenceStore.getState(), s.id);
   const predictedLow = Math.max(0, readiness - 6);
