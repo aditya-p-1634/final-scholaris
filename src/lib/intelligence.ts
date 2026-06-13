@@ -99,13 +99,22 @@ export interface DerivedConcept extends ConceptCore {
   risk: number;
   baseRisk: number;
   propagatedRisk: number;
+  structuralRisk: number;        // 0–100 — risk added purely by graph propagation
   status: ConceptStatus;
   lastReviewed: string;
   // Knowledge graph
   prerequisiteIds: string[];
   dependentIds: string[];
+  upstreamIds: string[];         // transitive prerequisites
+  downstreamIds: string[];       // transitive dependents
+  dependencyDepth: number;       // longest upstream chain length
+  dependencyCount: number;       // transitive prerequisite count
+  downstreamCount: number;       // transitive dependent count
   unlockPotential: number;       // 0–100
   bottleneckScore: number;       // 0–100
+  structuralImportance: number;  // 0–100 — position-in-graph leverage
+  criticalPathScore: number;     // 0–100
+  isBottleneck: boolean;
   isCriticalPath: boolean;
   // Advanced memory
   memory: MemoryProfile;
