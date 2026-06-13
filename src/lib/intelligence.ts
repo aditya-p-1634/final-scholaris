@@ -25,6 +25,24 @@ import {
 
 // ---------------- Types ----------------
 
+// Academic grading scheme — how a subject's grade is composed.
+// Weights are 0–1 and should sum to ~1. Drives assessment-aware ROI & risk.
+export interface AssessmentWeights {
+  midterm: number;
+  final: number;
+  assignment: number;
+  lab: number;
+  project: number;
+}
+
+export const DEFAULT_ASSESSMENT_WEIGHTS: AssessmentWeights = {
+  midterm: 0.2,
+  final: 0.5,
+  assignment: 0.15,
+  lab: 0.0,
+  project: 0.15,
+};
+
 export interface SubjectMeta {
   id: string;
   name: string;
@@ -36,6 +54,9 @@ export interface SubjectMeta {
   baselineMastery: number; // snapshot for trend calc
   examWeight: number; // 0–1: importance of upcoming exam
   strategicValue: number; // 0–100: long-term value within the program
+  // Academic Weighting Model
+  credits: number; // credit hours (e.g. 4-credit subject outranks a 2-credit one)
+  assessmentWeights: AssessmentWeights; // grading scheme composition
 }
 
 export interface ConceptCore {
