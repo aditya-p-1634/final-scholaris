@@ -24,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/_app/")({
 function CommandCenter() {
   const { concepts, subjects, missions, insights, academicStatus, focusToday, masteryTrend } = useIntelligence();
   const { runMission } = useIntelligenceActions();
+  const predictive = usePredictive();
   const navigate = useNavigate();
 
   const topMissions = missions.filter((m) => !m.completed).slice(0, 4);
