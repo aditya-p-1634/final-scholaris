@@ -1243,7 +1243,7 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       category: cat,
       reason: m.reason,
       evidence,
-      expectedBenefit: m.expectedImpact,
+      expectedBenefit,
       confidence: m.confidence,
       impact,
       urgency,
