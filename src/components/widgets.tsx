@@ -1,6 +1,6 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronDown, Info, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function PageHeader({
