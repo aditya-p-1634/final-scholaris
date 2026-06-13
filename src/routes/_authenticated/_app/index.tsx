@@ -236,7 +236,11 @@ function CommandCenter() {
         </div>
       </Panel>
 
+      {/* Daily debrief + weekly review — reflective execution layer. */}
+      <ExecutionReview execution={execution} />
+
       <PredictiveSection predictive={predictive} runMission={runMission} />
+
     </div>
   );
 }
