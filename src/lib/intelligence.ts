@@ -511,7 +511,7 @@ export const useIntelligenceStore = create<State>((set, get) => ({
 
   clear: () => {
     setPrerequisites({});
-    set(() => ({ version: 0, ...emptyState() }));
+    set((s) => ({ ...emptyState(), version: s.version + 1 }));
   },
 }));
 
