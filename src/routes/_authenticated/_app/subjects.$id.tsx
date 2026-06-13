@@ -295,7 +295,7 @@ function SubjectIntelligence() {
           </div>
         </Panel>
 
-        <Panel title="Dependency overview" description="Foundation and bottleneck concepts">
+        <Panel title="Graph intelligence" description={`Dependency health ${s.dependencyHealth}/100 · ${bottlenecks.length} bottleneck${bottlenecks.length === 1 ? "" : "s"} · ${structuralWeaknesses} structural weakness${structuralWeaknesses === 1 ? "" : "es"}`}>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-[10px] uppercase tracking-wider font-semibold text-success mb-2 flex items-center gap-1.5">
@@ -305,10 +305,10 @@ function SubjectIntelligence() {
                 {foundation.map((c) => (
                   <Link key={c.id} to="/concepts/$id" params={{ id: c.id }} className="block group">
                     <div className="text-sm font-medium group-hover:text-primary transition-colors truncate">{c.name}</div>
-                    <div className="text-[11px] text-muted-foreground">Importance {c.importance}/10 · mastery {c.mastery}</div>
+                    <div className="text-[11px] text-muted-foreground">Unlocks {c.downstreamCount} · structural {c.structuralImportance}/100</div>
                   </Link>
                 ))}
-                {foundation.length === 0 && <div className="text-xs text-muted-foreground italic">No high-importance concepts tagged.</div>}
+                {foundation.length === 0 && <div className="text-xs text-muted-foreground italic">No structural anchors detected.</div>}
               </div>
             </div>
             <div>
@@ -319,12 +319,28 @@ function SubjectIntelligence() {
                 {bottlenecks.map((c) => (
                   <Link key={c.id} to="/concepts/$id" params={{ id: c.id }} className="block group">
                     <div className="text-sm font-medium group-hover:text-primary transition-colors truncate">{c.name}</div>
-                    <div className="text-[11px] text-muted-foreground">Risk {c.risk} · mastery {c.mastery}</div>
+                    <div className="text-[11px] text-muted-foreground">Gates {c.downstreamCount} · mastery {c.mastery} · risk {c.risk}</div>
+                  </Link>
+                ))}
+                {bottlenecks.length === 0 && <div className="text-xs text-muted-foreground italic">No bottlenecks right now.</div>}
+              </div>
+            </div>
+          </div>
+          {criticalConcepts.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/60">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-warning mb-2 flex items-center gap-1.5">
+                <Layers className="h-3 w-3" /> Most critical concepts
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {criticalConcepts.map((c) => (
+                  <Link key={c.id} to="/concepts/$id" params={{ id: c.id }} className="block group">
+                    <div className="text-sm font-medium group-hover:text-primary transition-colors truncate">{c.name}</div>
+                    <div className="text-[11px] text-muted-foreground">Critical path {c.criticalPathScore}/100 · depth {c.dependencyDepth}</div>
                   </Link>
                 ))}
               </div>
             </div>
-          </div>
+          )}
         </Panel>
       </div>
 
