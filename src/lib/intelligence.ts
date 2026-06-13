@@ -61,20 +61,11 @@ export interface ConceptCore {
 // Concept A is a prerequisite of Concept B if B depends on A's mastery.
 // Drives dependency-aware risk propagation, bottleneck detection,
 // and critical-path analysis.
-export const PREREQUISITES: Record<string, string[]> = {
-  "c-1": [],
-  "c-2": ["c-1"],                 // Stereochemistry depends on SN2 mechanism
-  "c-11": ["c-1"],                // Diels-Alder depends on SN2 / arrow-pushing
-  "c-3": [],
-  "c-4": ["c-3"],                 // Gram-Schmidt depends on eigenstructure
-  "c-12": ["c-3", "c-4"],         // SVD depends on eigen + orthogonality
-  "c-5": [],
-  "c-6": ["c-5"],                 // Na/K pump after metabolism foundation
-  "c-7": [],
-  "c-9": [],                      // Hilbert spaces
-  "c-8": ["c-9", "c-3"],          // Schrödinger needs Hilbert + linear algebra
-  "c-10": [],
-};
+// Populated on hydrate() from the concept_prerequisites table.
+export let PREREQUISITES: Record<string, string[]> = {};
+export function setPrerequisites(p: Record<string, string[]>) {
+  PREREQUISITES = p;
+}
 
 export interface ExplainBlock {
   reason: string;
