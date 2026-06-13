@@ -271,10 +271,14 @@ function SubjectIntelligence() {
                 : `Trajectory is healthy. Maintain the current cadence — ${s.hoursThisWeek}h/week is producing measurable mastery gains.`}
             />
             <CoachLine
-              tone="info"
+              tone={bottlenecks[0] ? "danger" : "info"}
               text={bottlenecks[0]
-                ? `The bottleneck right now is "${bottlenecks[0].name}". It is importance ${bottlenecks[0].importance}/10 with mastery ${bottlenecks[0].mastery}.`
-                : `No bottleneck detected — every concept is above the developing band.`}
+                ? `Top structural bottleneck: "${bottlenecks[0].name}" gates ${bottlenecks[0].downstreamCount} downstream concept${bottlenecks[0].downstreamCount === 1 ? "" : "s"} at mastery ${bottlenecks[0].mastery}/100. Clearing it lifts pressure across the chain.`
+                : `No structural bottlenecks — no weak concept is gating multiple downstream nodes.`}
+            />
+            <CoachLine
+              tone={s.dependencyHealth < 60 ? "warning" : "success"}
+              text={`Dependency health ${s.dependencyHealth}/100${structuralWeaknesses ? ` · ${structuralWeaknesses} concept${structuralWeaknesses === 1 ? "" : "s"} carrying structural risk from weak prerequisites` : " · foundations are holding"}.`}
             />
             <CoachLine
               tone={s.risk > 60 ? "danger" : "success"}
