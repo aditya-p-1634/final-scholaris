@@ -149,6 +149,7 @@ export interface DerivedConcept extends ConceptCore {
   memory: MemoryProfile;
   // Advanced ROI
   roiBreakdown: RoiBreakdown;
+  roiContributors: string[];     // human-readable "why this ROI is high"
   // Explainability
   explain: { risk: ExplainBlock; roi: ExplainBlock };
 }
