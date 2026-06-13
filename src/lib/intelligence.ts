@@ -1083,6 +1083,32 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
     }
 
     if (!type) continue;
+
+    // --- Academic Weighting escalation (Mission Priority V2) ---
+    // A heavy, high-credit subject with an imminent high-stakes assessment
+    // should outrank a light elective, even at equal concept-level risk.
+    const escalationNotes: string[] = [];
+    if (subj && (type === "recovery" || type === "reinforcement")) {
+      const heavy = subj.heaviestAssessment;
+      const window = subj.daysToAssessment;
+      const highCredit = subj.credits >= 4 || subj.creditWeight >= 75;
+      const heavyAssessmentSoon =
+        heavy.weight >= 0.4 && window !== undefined && window <= 10;
+      let escalate = false;
+      if (highCredit) {
+        escalate = true;
+        escalationNotes.push(`${subj.credits}-credit subject (academic weight ${subj.academicWeight}/100)`);
+      }
+      if (heavyAssessmentSoon) {
+        escalate = true;
+        escalationNotes.push(`${heavy.kind} worth ${Math.round(heavy.weight * 100)}% of grade in ${window}d`);
+      }
+      if (escalate) {
+        const bump = { low: "medium", medium: "high", high: "critical", critical: "critical" } as const;
+        priority = bump[priority];
+      }
+    }
+
     const id = `m-${type}-${c.id}`;
     const riskReduction = Math.round(
       type === "recovery" ? c.propagatedRisk * 0.55 + c.structuralRisk * 0.20
@@ -1099,6 +1125,7 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
     if (c.isBottleneck) evidence.push(`Bottleneck · structural importance ${c.structuralImportance}/100 · critical path ${c.criticalPathScore}/100`);
     if (c.structuralRisk >= 8) evidence.push(`Structural risk +${c.structuralRisk} from weak prerequisites`);
     if (examSoon) evidence.push(`Exam in ${subj!.daysToAssessment}d · readiness ${subj!.readiness}/100`);
+    if (escalationNotes.length) evidence.push(`Priority escalated — ${escalationNotes.join(" · ")}`);
     const confidence = Math.round(clamp(
       72 + c.reviewCount * 1.4 + (c.assessmentAttempts > 0 ? 8 : 0) + (examSoon ? 6 : 0)
     ));
@@ -1192,6 +1219,21 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       if (downstream.length) evidence.push(`Unlocks: ${downstream.slice(0, 3).join(", ")}${downstream.length > 3 ? "…" : ""}`);
     }
     if (subj?.daysToAssessment !== undefined) evidence.push(`${subj.name} exam in ${subj.daysToAssessment}d · readiness ${subj.readiness}/100`);
+    // --- GPA-impact line (Recommendation V2) ---
+    // Translate academic weighting into a plain grade-impact statement so the
+    // student sees *why* this action moves their GPA, not just their mastery.
+    let expectedBenefit = m.expectedImpact;
+    if (subj) {
+      const heavy = subj.heaviestAssessment;
+      const gpaWeight = Math.round(clamp(subj.creditWeight * 0.6 + heavy.weight * 100 * 0.4));
+      const band = gpaWeight >= 70 ? "High" : gpaWeight >= 45 ? "Moderate" : "Low";
+      evidence.push(
+        `GPA impact: ${band} — ${subj.credits}-credit subject · ${heavy.kind} worth ${Math.round(heavy.weight * 100)}% of grade`,
+      );
+      if (band === "High") {
+        expectedBenefit = `${m.expectedImpact} · high GPA leverage (${subj.credits} credits)`;
+      }
+    }
     const unlocks = c
       ? concepts.filter((x) => c.dependentIds.includes(x.id)).map((x) => x.name)
       : [];
@@ -1201,7 +1243,7 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       category: cat,
       reason: m.reason,
       evidence,
-      expectedBenefit: m.expectedImpact,
+      expectedBenefit,
       confidence: m.confidence,
       impact,
       urgency,

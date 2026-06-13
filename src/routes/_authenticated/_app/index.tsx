@@ -43,6 +43,12 @@ function CommandCenter() {
     }
   };
 
+  // First-run / empty workspace — no subjects seeded yet.
+  if (subjects.length === 0) {
+    return <FirstRunCommandCenter />;
+  }
+
+
   return (
     <div>
       <PageHeader
@@ -709,5 +715,74 @@ function WhatIfPanel() {
         </div>
       )}
     </Panel>
+  );
+}
+
+function FirstRunCommandCenter() {
+  const pillars = [
+    { icon: Brain, title: "Memory Intelligence", desc: "Tracks decay and forecasts when each concept will be forgotten." },
+    { icon: ShieldAlert, title: "Risk Intelligence", desc: "Surfaces structural bottlenecks before they become exam failures." },
+    { icon: TrendingUp, title: "ROI Engine", desc: "Ranks every action by true academic return per minute invested." },
+    { icon: Target, title: "Mission Generation", desc: "Turns intelligence into a prioritized daily plan you can execute." },
+  ];
+  return (
+    <div>
+      <PageHeader
+        eyebrow="Command Center"
+        title="Welcome to Scholaris."
+        description="Your Academic Operating System is ready — set up your workspace to bring the intelligence engine online."
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 sm:p-10 mb-6"
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent pointer-events-none" />
+        <div className="relative max-w-xl">
+          <div className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full border border-border bg-background/60 text-[11px] font-medium text-muted-foreground mb-5">
+            <Sparkles className="h-3.5 w-3.5 text-primary" /> No data yet
+          </div>
+          <h2 className="text-2xl font-semibold tracking-tight mb-2">Build your academic workspace</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            Add your board, program and subjects. Scholaris seeds each subject with starter concepts so the
+            intelligence engine has signal from day one — no manual setup of formulas or weights required.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/onboarding"
+              className="inline-flex items-center gap-1.5 h-10 px-5 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              Set up workspace <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              to="/coach"
+              className="inline-flex items-center gap-1.5 h-10 px-5 rounded-md border border-border bg-background/40 text-sm font-medium hover:bg-accent transition-colors"
+            >
+              <Compass className="h-4 w-4" /> Talk to the coach
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {pillars.map((p, i) => (
+          <motion.div
+            key={p.title}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 + i * 0.05 }}
+            className="rounded-xl border border-border bg-card p-5"
+          >
+            <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 grid place-items-center mb-3">
+              <p.icon className="h-4 w-4 text-primary" />
+            </div>
+            <h3 className="text-sm font-semibold tracking-tight mb-1">{p.title}</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">{p.desc}</p>
+          </motion.div>
+        ))}
+      </div>
+    </div>
   );
 }
