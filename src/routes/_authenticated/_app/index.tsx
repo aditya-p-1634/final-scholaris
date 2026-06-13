@@ -27,6 +27,7 @@ function CommandCenter() {
   const { concepts, subjects, missions, insights, academicStatus, focusToday, masteryTrend } = useIntelligence();
   const { runMission } = useIntelligenceActions();
   const predictive = usePredictive();
+  const execution = useExecution();
   const navigate = useNavigate();
 
   const topMissions = missions.filter((m) => !m.completed).slice(0, 4);
@@ -47,13 +48,17 @@ function CommandCenter() {
       <PageHeader
         eyebrow="Command Center"
         title="Good evening, Alex."
-        description="Your academic intelligence is calibrated. Here's what matters today."
+        description="Here's what to do today, whether you're improving, and what's at risk."
         actions={
           <button onClick={startTodaysPlan} className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer">
             Start today's plan <ArrowRight className="h-3.5 w-3.5" />
           </button>
         }
       />
+
+      {/* Execution layer — action first, analytics second. */}
+      <ExecutionTop execution={execution} runMission={runMission} />
+
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Mastery" value={academicStatus.overallMastery} suffix="/100" trend={academicStatus.trend7d} icon={Activity} tone="default" />
