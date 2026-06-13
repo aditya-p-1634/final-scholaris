@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   Activity, Brain, TrendingUp, ShieldAlert, Target, ArrowRight,
-  Flame, Sparkles, AlertTriangle, Clock,
+  Flame, Sparkles, AlertTriangle, Clock, Compass, GitBranch, Hourglass,
+  Lightbulb, LineChart, Crosshair,
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
-import { PageHeader, StatCard, Panel, StatusDot, MetricBar } from "@/components/widgets";
+import { PageHeader, StatCard, Panel, StatusDot, MetricBar, Explain, DeltaPill } from "@/components/widgets";
 import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
+import { usePredictive, simulateWhatIf, getCoreState, type WhatIfId, type WhatIfScenario } from "@/lib/predictive";
 
 export const Route = createFileRoute("/_authenticated/_app/")({
   head: () => ({
