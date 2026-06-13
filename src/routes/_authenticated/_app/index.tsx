@@ -228,6 +228,229 @@ function CommandCenter() {
           ))}
         </div>
       </Panel>
+
+      <PredictiveSection predictive={predictive} runMission={runMission} />
     </div>
+  );
+}
+
+function snapshotTone(risk: number): "success" | "info" | "warning" | "danger" {
+  return risk >= 65 ? "danger" : risk >= 45 ? "warning" : risk >= 25 ? "info" : "success";
+}
+
+function PredictiveSection({ predictive, runMission }: { predictive: ReturnType<typeof usePredictive>; runMission: (id: string) => void }) {
+  const { studentModel, digitalTwin, riskForecast, forgettingForecast, strategicInsights, missionForecasts, futureSelfPaths } = predictive;
+  const twins = [digitalTwin.currentSelf, digitalTwin.projectedSelf, digitalTwin.futureSelf];
+  const topMission = missionForecasts[0];
+
+  return (
+    <div className="mt-10">
+      <div className="flex items-center gap-2 mb-1">
+        <Compass className="h-4 w-4 text-primary" />
+        <h2 className="text-lg font-semibold tracking-tight">Predictive Intelligence</h2>
+      </div>
+      <p className="text-sm text-muted-foreground mb-5">
+        Adaptive model · learner archetype <span className="text-foreground font-medium">{studentModel.archetype}</span> · profile confidence {studentModel.profileConfidence}%
+      </p>
+
+      {/* Academic Digital Twin */}
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+        {twins.map((t, i) => (
+          <Panel key={t.label} title={t.label} description={t.description}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`text-[10px] uppercase tracking-wider font-semibold ${i === 0 ? "text-info" : i === 1 ? "text-warning" : "text-success"}`}>
+                {i === 0 ? "Now" : i === 1 ? "Maintain" : "Recommended"}
+              </span>
+              <StatusDot tone={snapshotTone(t.risk)} />
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <Metric label="Mastery" value={t.mastery} delta={i > 0 ? t.mastery - twins[0].mastery : undefined} />
+              <Metric label="Memory" value={t.memory} delta={i > 0 ? t.memory - twins[0].memory : undefined} />
+              <Metric label="Risk" value={t.risk} delta={i > 0 ? t.risk - twins[0].risk : undefined} invert />
+            </div>
+            <div className="mt-3 pt-3 border-t border-border/60 flex justify-between text-xs">
+              <span className="text-muted-foreground">Readiness</span>
+              <span className="font-mono">{t.readiness}/100 · {t.weakConcepts} weak</span>
+            </div>
+          </Panel>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4 mb-6">
+        {/* Risk Forecast */}
+        <Panel title="Risk Forecast" description="Composite risk trajectory if behaviour is unchanged" className="lg:col-span-2">
+          <div className="grid grid-cols-4 gap-3 mb-2">
+            {riskForecast.horizons.map((h) => (
+              <div key={h.days} className="rounded-lg border border-border/60 bg-card/50 p-3 text-center">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{h.days}d</div>
+                <div className={`text-2xl font-semibold tabular-nums mt-1 ${h.risk >= 65 ? "text-destructive" : h.risk >= 45 ? "text-warning" : ""}`}>{h.risk}</div>
+                <div className="mt-0.5"><DeltaPill value={h.delta} invert /></div>
+              </div>
+            ))}
+          </div>
+          <Explain data={riskForecast.explanation} />
+        </Panel>
+
+        {/* Forgetting alerts */}
+        <Panel title="Forgetting Forecast" description={`${forgettingForecast.alerts.length} concept${forgettingForecast.alerts.length === 1 ? "" : "s"} approaching the cliff`}>
+          {forgettingForecast.alerts.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-6 text-center">No critical concepts projected to be forgotten within 10 days.</div>
+          ) : (
+            <div className="space-y-2.5">
+              {forgettingForecast.alerts.slice(0, 4).map((a) => (
+                <Link to="/concepts/$id" params={{ id: a.conceptId }} key={a.conceptId} className="block p-2.5 rounded-lg border border-border/60 bg-card/50 hover:border-border">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium truncate flex items-center gap-1.5">
+                      <Hourglass className={`h-3 w-3 shrink-0 ${a.severity === "critical" ? "text-destructive" : "text-warning"}`} />
+                      {a.conceptName}
+                    </span>
+                    <span className={`text-xs font-mono shrink-0 ${a.severity === "critical" ? "text-destructive" : "text-warning"}`}>{a.daysUntil}d</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 ml-4.5">{a.subjectName} · {a.date}</div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {/* Strategic priorities */}
+      <Panel title="Strategic Priorities" description="Academic strategist · ranked by future impact" className="mb-6"
+        action={<Link to="/coach" className="text-xs text-primary hover:underline">Open strategist</Link>}>
+        <div className="space-y-3">
+          {strategicInsights.slice(0, 4).map((s) => (
+            <div key={s.id} className="rounded-lg border border-border/60 bg-card/50 p-3.5">
+              <div className="flex items-start gap-2.5">
+                <div className={`h-7 w-7 shrink-0 rounded-md grid place-items-center ${
+                  s.severity === "critical" ? "bg-destructive/15 text-destructive" :
+                  s.severity === "high" ? "bg-warning/15 text-warning" :
+                  s.severity === "opportunity" ? "bg-success/15 text-success" : "bg-primary/15 text-primary"
+                }`}>
+                  {s.severity === "opportunity" ? <Lightbulb className="h-3.5 w-3.5" /> : s.severity === "critical" ? <Crosshair className="h-3.5 w-3.5" /> : <GitBranch className="h-3.5 w-3.5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium leading-snug">{s.title}</div>
+                  <Explain data={s.explanation} />
+                </div>
+              </div>
+            </div>
+          ))}
+          {strategicInsights.length === 0 && (
+            <div className="text-sm text-muted-foreground py-6 text-center">No strategic signals — the engine is calibrating from your behaviour.</div>
+          )}
+        </div>
+      </Panel>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        {/* Future Self paths */}
+        <Panel title="Future Self Simulator" description={`Trajectories over ${futureSelfPaths[0]?.horizonDays ?? 14} days`} className="lg:col-span-2">
+          <div className="space-y-3">
+            {futureSelfPaths.map((p) => (
+              <div key={p.id} className="rounded-lg border border-border/60 bg-card/50 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="text-sm font-medium">{p.label}</div>
+                    <div className="text-[11px] text-muted-foreground">{p.description}</div>
+                  </div>
+                  <LineChart className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <PathMetric label="Mastery" value={p.metrics.mastery} />
+                  <PathMetric label="Memory" value={p.metrics.memory} />
+                  <PathMetric label="Risk" value={p.metrics.risk} danger />
+                  <PathMetric label="Ready" value={p.metrics.readiness} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        {/* What-If */}
+        <WhatIfPanel />
+      </div>
+
+      {topMission && (
+        <Panel title="Highest future-value action" className="mt-6"
+          action={<button onClick={() => runMission(topMission.id)} className="text-xs text-primary hover:underline cursor-pointer">Run now</button>}>
+          <div className="text-sm font-medium">{topMission.title}</div>
+          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+            <span className="text-success font-mono">Future value {topMission.futureValue}/100</span>
+            <span>· -{topMission.riskPrevented} risk</span>
+            <span>· {topMission.conceptsUnlocked} unlocks</span>
+          </div>
+          <Explain data={topMission.forecastExplanation} />
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+function Metric({ label, value, delta, invert }: { label: string; value: number; delta?: number; invert?: boolean }) {
+  return (
+    <div className="rounded-md bg-muted/40 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold tabular-nums">{value}</div>
+      {typeof delta === "number" && <div className="flex justify-center"><DeltaPill value={delta} invert={invert} /></div>}
+    </div>
+  );
+}
+
+function PathMetric({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`text-base font-semibold tabular-nums ${danger && value >= 60 ? "text-destructive" : danger && value >= 45 ? "text-warning" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+const WHAT_IF_OPTIONS: { id: WhatIfId; label: string }[] = [
+  { id: "ignore-top-mission", label: "Ignore my top mission" },
+  { id: "study-5-extra-hours", label: "Study 5 extra hours this week" },
+  { id: "recover-bottleneck", label: "Recover my biggest bottleneck" },
+  { id: "skip-revision-14d", label: "Skip revisions for 14 days" },
+];
+
+function WhatIfPanel() {
+  const predictive = usePredictive();
+  const [scenario, setScenario] = useState<WhatIfScenario | null>(null);
+  const run = (id: WhatIfId) => setScenario(simulateWhatIf(getCoreState(), predictive.studentModel, id));
+
+  return (
+    <Panel title="What-If Analysis" description="Simulate an intervention">
+      <div className="space-y-1.5">
+        {WHAT_IF_OPTIONS.map((o) => (
+          <button
+            key={o.id}
+            onClick={() => run(o.id)}
+            className={`w-full text-left text-xs px-3 h-9 rounded-md border transition-colors cursor-pointer ${
+              scenario?.id === o.id ? "border-primary bg-primary/10 text-foreground" : "border-border/60 bg-card/50 text-muted-foreground hover:text-foreground hover:border-border"
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {scenario && (
+        <div className="mt-3 pt-3 border-t border-border/60">
+          <p className="text-xs text-foreground leading-relaxed">{scenario.explanation.reason}</p>
+          <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+            <div className="rounded-md bg-muted/40 py-1.5">
+              <div className="text-[10px] uppercase text-muted-foreground">Risk</div>
+              <DeltaPill value={scenario.deltaRisk} invert />
+            </div>
+            <div className="rounded-md bg-muted/40 py-1.5">
+              <div className="text-[10px] uppercase text-muted-foreground">Mastery</div>
+              <DeltaPill value={scenario.deltaMastery} />
+            </div>
+            <div className="rounded-md bg-muted/40 py-1.5">
+              <div className="text-[10px] uppercase text-muted-foreground">Memory</div>
+              <DeltaPill value={scenario.deltaMemory} />
+            </div>
+          </div>
+          <Explain data={scenario.explanation} />
+        </div>
+      )}
+    </Panel>
   );
 }
