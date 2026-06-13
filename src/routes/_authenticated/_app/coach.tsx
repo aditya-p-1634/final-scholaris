@@ -101,26 +101,34 @@ function CoachDashboard() {
         </Panel>
 
         <div className="space-y-4">
-          <Panel title="Coach context" description="What the coach sees right now">
+          <Panel title="Strategist context" description="What the strategist reasons over">
             <div className="space-y-3 text-sm">
-              <Item label="Active subjects" value={String(ctx.activeSubjects)} />
-              <Item label="Critical concepts" value={String(ctx.criticalConcepts)} />
-              <Item label="Upcoming exams (7d)" value={String(ctx.upcomingExams7d)} />
-              <Item label="Mission queue" value={String(ctx.missionQueue)} />
+              <Item label="Learner archetype" value={studentModel.archetype} />
+              <Item label="Profile confidence" value={`${studentModel.profileConfidence}%`} />
+              <Item label="Learning velocity" value={`${studentModel.learningVelocity}/hr`} />
+              <Item label="Recall accuracy" value={`${studentModel.recallAccuracy}%`} />
               <Item label="Composite risk" value={`${ctx.compositeRisk}/100`} />
               <Item label="Open incidents" value={String(incidents.length)} />
               <Item label="Live recommendations" value={String(recommendations.length)} />
             </div>
-            <div className="mt-5 p-4 rounded-lg bg-gradient-to-br from-primary/10 to-transparent border border-primary/20">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-primary mb-1">Strategic outlook</div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{ctx.strategicOutlook}</p>
+            <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+              {[digitalTwin.currentSelf, digitalTwin.projectedSelf, digitalTwin.futureSelf].map((t, i) => (
+                <div key={t.label} className="rounded-md bg-muted/40 py-2">
+                  <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{i === 0 ? "Now" : i === 1 ? "14d" : "30d"}</div>
+                  <div className="text-base font-semibold tabular-nums">{t.mastery}</div>
+                  <div className="text-[9px] text-muted-foreground">mastery</div>
+                </div>
+              ))}
             </div>
           </Panel>
 
-          {ctx.topMission && (
-            <Panel title="Top mission in queue">
-              <div className="text-sm font-medium">{ctx.topMission.title}</div>
-              <div className="text-xs text-muted-foreground mt-1">{ctx.topMission.reason}</div>
+          {strategicInsights[0] && (
+            <Panel title="Top strategic signal">
+              <div className="flex items-center gap-2 mb-1">
+                <Brain className="h-3.5 w-3.5 text-primary" />
+                <span className="text-sm font-medium leading-snug">{strategicInsights[0].title}</span>
+              </div>
+              <Explain data={strategicInsights[0].explanation} defaultOpen />
               <Link to="/missions" className="mt-3 inline-flex text-xs text-primary hover:underline">Open missions →</Link>
             </Panel>
           )}
@@ -129,6 +137,20 @@ function CoachDashboard() {
     </div>
   );
 }
+
+function strategicInsightsOpening(
+  insights: ReturnType<typeof usePredictive>["strategicInsights"],
+  missionForecasts: ReturnType<typeof usePredictive>["missionForecasts"],
+): string {
+  if (insights[0]) {
+    return `Strategic read: ${insights[0].title}. ${insights[0].explanation.reason} ${insights[0].explanation.projectedImpact}`;
+  }
+  if (missionForecasts[0]) {
+    return `Your highest future-value action is "${missionForecasts[0].title}" (${missionForecasts[0].futureValue}/100). Ask me about your trajectory, forgetting forecast or exam outlook.`;
+  }
+  return `I'm calibrating from your behaviour. Run a few missions and I'll forecast your trajectory, risk and forgetting curve.`;
+}
+
 
 function Item({ label, value }: { label: string; value: string }) {
   return (
