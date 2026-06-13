@@ -925,17 +925,17 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
     if (c.status === "forgotten" || (c.status === "weak" && c.memoryStrength < 35)) {
       type = "recovery";
       minutes = Math.max(20, Math.round((100 - c.mastery) / 3));
-      priority = c.risk > 80 || (examSoon && c.importance >= 8) ? "critical" : "high";
+      priority = c.risk > 80 || (examSoon && c.importance >= 8) || (c.isBottleneck && c.downstreamCount >= 3) ? "critical" : "high";
       title = `Recover ${c.name}`;
       description = `Mastery ${c.mastery} · memory ${c.memoryStrength}. Decay has crossed the threshold — a focused recovery sprint restores it.`;
-      reason = `${c.status === "forgotten" ? "Forgotten" : "Weak"} concept · risk ${c.risk}${examSoon ? ` · exam in ${subj!.daysToAssessment}d` : ""}`;
+      reason = `${c.status === "forgotten" ? "Forgotten" : "Weak"} concept · risk ${c.risk}${c.isBottleneck ? ` · bottleneck for ${c.downstreamCount} downstream` : ""}${examSoon ? ` · exam in ${subj!.daysToAssessment}d` : ""}`;
     } else if (c.status === "developing" || (c.status === "strong" && c.memoryStrength < 65)) {
       type = "reinforcement";
       minutes = Math.max(20, Math.round((85 - c.mastery) / 2.5));
-      priority = c.risk > 55 ? "high" : "medium";
+      priority = c.risk > 55 || (c.isBottleneck && c.downstreamCount >= 2) ? "high" : "medium";
       title = `Reinforce ${c.name}`;
       description = `Approaching decay threshold. A short reinforcement pass consolidates encoding before memory drops.`;
-      reason = `Memory ${c.memoryStrength} · ROI ${c.roi}`;
+      reason = `Memory ${c.memoryStrength} · ROI ${c.roi}${c.isBottleneck ? ` · gates ${c.downstreamCount} downstream` : ""}`;
     } else if (c.status === "mastered" && c.daysSinceReview >= 7) {
       type = "review";
       minutes = 12;
@@ -949,14 +949,14 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
       priority = "medium";
       title = `Expand from ${c.name}`;
       description = `You've mastered the anchor — extend to adjacent concepts to compound returns.`;
-      reason = `Mastered · high-importance · high-ROI cluster`;
+      reason = `Mastered · high-importance · high-ROI cluster${c.downstreamCount ? ` · ${c.downstreamCount} downstream` : ""}`;
     }
 
     if (!type) continue;
     const id = `m-${type}-${c.id}`;
     const riskReduction = Math.round(
-      type === "recovery" ? c.propagatedRisk * 0.55
-      : type === "reinforcement" ? c.propagatedRisk * 0.30
+      type === "recovery" ? c.propagatedRisk * 0.55 + c.structuralRisk * 0.20
+      : type === "reinforcement" ? c.propagatedRisk * 0.30 + c.structuralRisk * 0.10
       : type === "expansion" ? c.unlockPotential * 0.20
       : c.propagatedRisk * 0.18
     );
@@ -964,23 +964,27 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
       `Mastery ${c.mastery}/100 · memory ${c.memoryStrength}/100 · risk ${c.risk}`,
       `Importance ${c.importance}/10 · last reviewed ${c.lastReviewed}`,
     ];
-    if (c.prerequisiteIds.length) evidence.push(`${c.prerequisiteIds.length} prerequisite${c.prerequisiteIds.length === 1 ? "" : "s"} influencing this concept`);
-    if (c.dependentIds.length) evidence.push(`Unlocks ${c.dependentIds.length} downstream concept${c.dependentIds.length === 1 ? "" : "s"}`);
+    if (c.prerequisiteIds.length) evidence.push(`${c.prerequisiteIds.length} prerequisite${c.prerequisiteIds.length === 1 ? "" : "s"} · ${c.dependencyCount} upstream total (depth ${c.dependencyDepth})`);
+    if (c.downstreamCount) evidence.push(`Unlocks ${c.dependentIds.length} direct / ${c.downstreamCount} total downstream concept${c.downstreamCount === 1 ? "" : "s"}`);
+    if (c.isBottleneck) evidence.push(`Bottleneck · structural importance ${c.structuralImportance}/100 · critical path ${c.criticalPathScore}/100`);
+    if (c.structuralRisk >= 8) evidence.push(`Structural risk +${c.structuralRisk} from weak prerequisites`);
     if (examSoon) evidence.push(`Exam in ${subj!.daysToAssessment}d · readiness ${subj!.readiness}/100`);
     const confidence = Math.round(clamp(
       72 + c.reviewCount * 1.4 + (c.assessmentAttempts > 0 ? 8 : 0) + (examSoon ? 6 : 0)
     ));
     const expectedImpact =
-      type === "recovery" ? `+${Math.round((100 - c.mastery) / 4)}% mastery · -${riskReduction} risk · +${c.memory.recoverySpeed} memory`
+      type === "recovery" ? `+${Math.round((100 - c.mastery) / 4)}% mastery · -${riskReduction} risk${c.downstreamCount ? ` · eases ${c.downstreamCount} downstream` : ""}`
       : type === "reinforcement" ? `+${Math.round(c.memory.recoverySpeed * 0.7)} memory · -${riskReduction} risk`
-      : type === "expansion" ? `Unlocks ${c.dependentIds.length} concept${c.dependentIds.length === 1 ? "" : "s"} · +ROI compounding`
+      : type === "expansion" ? `Unlocks ${c.dependentIds.length} direct · ${c.downstreamCount} total downstream · +ROI compounding`
       : `Preserves mastery streak · -${riskReduction} forgetting probability`;
+    // Structural boost for ROI scoring — bottlenecks rise to the top.
+    const structuralBoost = c.isBottleneck ? c.structuralImportance * 0.20 : c.downstreamCount * 2;
     out.push({
       id, title, description, type, priority,
       subjectId: c.subjectId, subjectName: c.subjectName,
       conceptIds: [c.id],
       estimatedMinutes: minutes,
-      roiScore: Math.round(c.roi + c.importance * 2 - c.daysSinceReview * 0.4),
+      roiScore: Math.round(c.roi + c.importance * 2 - c.daysSinceReview * 0.4 + structuralBoost),
       reason,
       dueBy: priority === "critical" ? "today" : examSoon ? "tomorrow" : undefined,
       completed: completed.has(id),
