@@ -434,7 +434,7 @@ export interface AcademicHealth {
 }
 
 export function deriveAcademicHealth(s: CoreState, momentum: MomentumReport): AcademicHealth {
-  const status = deriveAcademicStatus(s);
+  const status = deriveAcademicStatus(s as Parameters<typeof deriveAcademicStatus>[0]);
   const subjects = deriveSubjects(s);
   const readiness = subjects.length
     ? round(subjects.reduce((a, x) => a + x.readiness, 0) / subjects.length)
