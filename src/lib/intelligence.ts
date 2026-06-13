@@ -485,7 +485,24 @@ export const useIntelligenceStore = create<State>((set, get) => ({
     return entry;
   },
 
-  resetIntelligence: () => set(() => ({ version: 0, ...seedState() })),
+  resetIntelligence: () => set(() => ({ version: 0, ...emptyState() })),
+
+  hydrate: (payload) => {
+    setPrerequisites(payload.prereqs);
+    set((s) => ({
+      version: s.version + 1,
+      conceptsById: payload.conceptsById,
+      subjectsById: payload.subjectsById,
+      sessions: payload.sessions,
+      assessments: payload.assessments,
+      completedMissionIds: payload.completedMissionIds,
+    }));
+  },
+
+  clear: () => {
+    setPrerequisites({});
+    set(() => ({ version: 0, ...emptyState() }));
+  },
 }));
 
 // ---------------- Pure derivation ----------------
