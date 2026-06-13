@@ -369,8 +369,6 @@ export const useIntelligenceStore = create<State>((set, get) => ({
   },
 
   runMission: (missionId) => {
-    // Look up the derived mission, apply session effects to every concept it
-    // targets, and mark it completed so dashboards reflect the win.
     const missions = deriveMissions(get());
     const m = missions.find((x) => x.id === missionId);
     if (!m) return;
@@ -386,6 +384,7 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       version: s.version + 1,
       completedMissionIds: [...new Set([...s.completedMissionIds, missionId])],
     }));
+    void persistMissionCompletion(m);
   },
 
   recordAssessment: ({ subjectId, title, actual }) => {
