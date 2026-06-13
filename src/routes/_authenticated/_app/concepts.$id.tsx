@@ -38,9 +38,11 @@ function ConceptIntelligence() {
     return { day: day === 0 ? "Today" : day > 0 ? `+${day}d` : `${day}d`, memory, recovered, isPast };
   });
 
-  const subjectSiblings = concepts.filter((x) => x.subjectId === c.subjectId && x.id !== c.id);
-  const prerequisites = subjectSiblings.filter((x) => x.importance >= c.importance).slice(0, 2);
-  const dependents = subjectSiblings.filter((x) => x.importance <= c.importance).slice(0, 3);
+  const prerequisites = c.prerequisiteIds.map((pid) => concepts.find((x) => x.id === pid)).filter(Boolean) as typeof concepts;
+  const dependents = c.dependentIds.map((did) => concepts.find((x) => x.id === did)).filter(Boolean) as typeof concepts;
+  const upstreamAll = c.upstreamIds.map((id) => concepts.find((x) => x.id === id)).filter(Boolean) as typeof concepts;
+  const downstreamAll = c.downstreamIds.map((id) => concepts.find((x) => x.id === id)).filter(Boolean) as typeof concepts;
+  const weakPrereqs = prerequisites.filter((p) => p.mastery < 60);
 
   const relatedMissions = missions.filter((m) => m.conceptIds.includes(c.id));
   const activeMissions = relatedMissions.filter((m) => !m.completed);
