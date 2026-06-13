@@ -7,14 +7,21 @@
 
 import { create } from "zustand";
 import { useSyncExternalStore } from "react";
-import {
-  subjects as seedSubjects,
-  concepts as seedConcepts,
-  type SubjectStatus,
-  type ConceptStatus,
-  type MissionPriority,
-  type MissionType,
+import type {
+  SubjectStatus,
+  ConceptStatus,
+  MissionPriority,
+  MissionType,
 } from "./mock-data";
+import {
+  persistSession,
+  persistAssessment,
+  persistConceptPatch,
+  persistConceptsBatch,
+  persistMissionCompletion,
+  persistAdvanceDay,
+  type WorkspacePayload,
+} from "./persistence";
 
 // ---------------- Types ----------------
 
