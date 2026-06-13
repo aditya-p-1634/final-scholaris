@@ -172,6 +172,11 @@ export interface DerivedSubject {
   nextAssessment?: string;
   daysToAssessment?: number;
   examWeight: number;
+  // Academic Weighting Model
+  credits: number;
+  creditWeight: number;        // 0–100 — credits normalized vs program max
+  academicWeight: number;      // 0–100 — composite subject importance
+  heaviestAssessment: { kind: string; weight: number };
   dependencyHealth: number;
   predictedScore: { low: number; high: number };
   readiness: number;
