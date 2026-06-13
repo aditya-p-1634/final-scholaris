@@ -202,10 +202,21 @@ async function currentUserId(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
+type ConceptUpdate = {
+  mastery?: number;
+  memory_strength?: number;
+  review_count?: number;
+  last_reviewed_at?: string;
+  successful_recalls?: number;
+  failed_recalls?: number;
+  assessment_attempts?: number;
+  assessment_correct?: number;
+};
+
 export async function persistConceptPatch(conceptId: string, patch: Partial<ConceptCore>) {
   const userId = await currentUserId();
   if (!userId) return;
-  const row: Record<string, unknown> = {};
+  const row: ConceptUpdate = {};
   if (patch.mastery !== undefined) row.mastery = patch.mastery;
   if (patch.memoryStrength !== undefined) row.memory_strength = patch.memoryStrength;
   if (patch.reviewCount !== undefined) row.review_count = patch.reviewCount;
