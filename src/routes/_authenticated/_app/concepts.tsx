@@ -5,7 +5,7 @@ import { PageHeader, Panel, StatusDot, MetricBar } from "@/components/widgets";
 import { useIntelligence } from "@/lib/intelligence";
 import type { ConceptStatus } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/concepts")({
+export const Route = createFileRoute("/_authenticated/_app/concepts")({
   head: () => ({
     meta: [
       { title: "Concepts — Scholaris" },

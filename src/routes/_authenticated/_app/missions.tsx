@@ -6,7 +6,7 @@ import { PageHeader, Panel } from "@/components/widgets";
 import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
 import type { MissionPriority } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/missions")({
+export const Route = createFileRoute("/_authenticated/_app/missions")({
   head: () => ({
     meta: [
       { title: "Missions — Scholaris" },

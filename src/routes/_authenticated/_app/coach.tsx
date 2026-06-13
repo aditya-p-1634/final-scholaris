@@ -5,7 +5,7 @@ import { Sparkles, Send, Brain, Target, TrendingUp, ShieldAlert } from "lucide-r
 import { PageHeader, Panel } from "@/components/widgets";
 import { useIntelligence, useIntelligenceStore, generateCoachReply } from "@/lib/intelligence";
 
-export const Route = createFileRoute("/coach")({
+export const Route = createFileRoute("/_authenticated/_app/coach")({
   head: () => ({ meta: [{ title: "AI Coach — Scholaris" }] }),
   component: CoachDashboard,
 });
