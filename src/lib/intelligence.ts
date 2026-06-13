@@ -1474,13 +1474,37 @@ export function generateCoachReply(question: string, ctx: CoachContext, d: Deriv
   const sub = d.subjects;
   const lookupSubject = sub.find((s) => q.includes(s.name.toLowerCase()) || q.includes(s.code.toLowerCase()));
 
+  // Graph-aware reasoning — bottlenecks, unlocks, structural risk.
+  if (q.includes("bottleneck") || q.includes("blocker") || q.includes("blocking")) {
+    const top = d.bottlenecks[0];
+    if (top) {
+      return `The biggest bottleneck is ${top.conceptName} (${top.subjectName}). It gates ${top.dependentCount} downstream concept${top.dependentCount === 1 ? "" : "s"} at mastery ${top.mastery}/100. Recovering it lifts pressure across the chain.`;
+    }
+    return `No structural bottlenecks right now — no weak concept is gating multiple downstream nodes.`;
+  }
+  if (q.includes("unlock") || q.includes("downstream") || q.includes("dependent")) {
+    const top = [...d.concepts].sort((a, b) => b.downstreamCount * 10 + b.unlockPotential - (a.downstreamCount * 10 + a.unlockPotential))[0];
+    if (top && top.downstreamCount > 0) {
+      return `Recovering ${top.name} unlocks ${top.downstreamCount} downstream concept${top.downstreamCount === 1 ? "" : "s"} (${top.dependentIds.length} direct, depth ${top.dependencyDepth}). Structural importance ${top.structuralImportance}/100.`;
+    }
+    return `No concept currently dominates the dependency graph — every node has limited downstream reach.`;
+  }
+  if (q.includes("critical path") || q.includes("structural") || q.includes("foundation")) {
+    const path = d.criticalPath.slice(0, 3).map((c) => c.name).join(" → ");
+    if (path) return `Critical path right now: ${path}. These nodes carry the highest combined structural importance and propagated risk.`;
+  }
+
   if (q.includes("priorit") || q.includes("first") || q.includes("now") || q.includes("today")) {
     if (ctx.topMission) {
       return `Start with "${ctx.topMission.title}" — ${ctx.topMission.estimatedMinutes} minutes, ROI ${ctx.topMission.roiScore}. Reason: ${ctx.topMission.reason}.`;
     }
   }
   if (q.includes("risk") || q.includes("dang")) {
-    return `Composite risk is ${ctx.compositeRisk}/100. The highest-risk subject is ${ctx.topSubjectRisk?.name} at ${ctx.topSubjectRisk?.risk}/100 with ${ctx.topSubjectRisk?.weakConcepts} weak concepts.`;
+    const struct = [...d.concepts].sort((a, b) => b.structuralRisk - a.structuralRisk)[0];
+    const structLine = struct && struct.structuralRisk >= 6
+      ? ` Structural risk is concentrated on ${struct.name} (+${struct.structuralRisk} from weak prerequisites).`
+      : "";
+    return `Composite risk is ${ctx.compositeRisk}/100. The highest-risk subject is ${ctx.topSubjectRisk?.name} at ${ctx.topSubjectRisk?.risk}/100 with ${ctx.topSubjectRisk?.weakConcepts} weak concepts.${structLine}`;
   }
   if (q.includes("memory") || q.includes("forget")) {
     const forgotten = d.concepts.filter((c) => c.memoryStrength < 35);
@@ -1492,16 +1516,21 @@ export function generateCoachReply(question: string, ctx: CoachContext, d: Deriv
   }
   if (q.includes("roi") || q.includes("impact") || q.includes("efficient")) {
     const top = [...d.concepts].sort((a, b) => b.roi - a.roi)[0];
-    return `Your highest-ROI concept right now is ${top.name} (${top.roi}/100) in ${top.subjectName}. A focused session there yields the largest mastery gain per minute.`;
+    const unlocks = top.downstreamCount ? ` It also unlocks ${top.downstreamCount} downstream concept${top.downstreamCount === 1 ? "" : "s"}.` : "";
+    return `Your highest-ROI concept right now is ${top.name} (${top.roi}/100) in ${top.subjectName}. A focused session there yields the largest mastery gain per minute.${unlocks}`;
   }
   if (q.includes("exam") || q.includes("assessment") || q.includes("test")) {
     const next = sub.filter((s) => s.daysToAssessment !== undefined).sort((a, b) => (a.daysToAssessment! - b.daysToAssessment!))[0];
     if (next) {
-      return `Next assessment: ${next.name} in ${next.daysToAssessment} days. Current readiness ${computeSubjectReadiness(useIntelligenceStore.getState(), next.id)}/100. Projected score band ${Math.max(40, 100 - next.risk - 6)}–${Math.max(50, 100 - next.risk + 4)}%.`;
+      const blockers = d.concepts.filter((c) => c.subjectId === next.id && c.isBottleneck).slice(0, 2).map((c) => c.name);
+      const blockerLine = blockers.length ? ` Top structural blockers: ${blockers.join(", ")}.` : "";
+      return `Next assessment: ${next.name} in ${next.daysToAssessment} days. Current readiness ${computeSubjectReadiness(useIntelligenceStore.getState(), next.id)}/100. Projected score band ${Math.max(40, 100 - next.risk - 6)}–${Math.max(50, 100 - next.risk + 4)}%.${blockerLine}`;
     }
   }
   if (lookupSubject) {
-    return `${lookupSubject.name}: mastery ${lookupSubject.mastery}, memory ${lookupSubject.memory}, ROI ${lookupSubject.roi}, risk ${lookupSubject.risk}. ${lookupSubject.weakConcepts} of ${lookupSubject.concepts} concepts need work. Status: ${lookupSubject.status}.`;
+    const subBottlenecks = d.concepts.filter((c) => c.subjectId === lookupSubject.id && c.isBottleneck).length;
+    const bnLine = subBottlenecks ? ` ${subBottlenecks} structural bottleneck${subBottlenecks === 1 ? "" : "s"} detected.` : "";
+    return `${lookupSubject.name}: mastery ${lookupSubject.mastery}, memory ${lookupSubject.memory}, ROI ${lookupSubject.roi}, risk ${lookupSubject.risk}. ${lookupSubject.weakConcepts} of ${lookupSubject.concepts} concepts need work. Status: ${lookupSubject.status}. Dependency health ${lookupSubject.dependencyHealth}/100.${bnLine}`;
   }
   return `${ctx.strategicOutlook} You have ${ctx.missionQueue} missions queued and ${ctx.criticalConcepts} critical concepts. Ask about a specific subject, exam, or your current risk for a deeper read.`;
 }
