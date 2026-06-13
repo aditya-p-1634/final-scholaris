@@ -1219,6 +1219,21 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       if (downstream.length) evidence.push(`Unlocks: ${downstream.slice(0, 3).join(", ")}${downstream.length > 3 ? "…" : ""}`);
     }
     if (subj?.daysToAssessment !== undefined) evidence.push(`${subj.name} exam in ${subj.daysToAssessment}d · readiness ${subj.readiness}/100`);
+    // --- GPA-impact line (Recommendation V2) ---
+    // Translate academic weighting into a plain grade-impact statement so the
+    // student sees *why* this action moves their GPA, not just their mastery.
+    let expectedBenefit = m.expectedImpact;
+    if (subj) {
+      const heavy = subj.heaviestAssessment;
+      const gpaWeight = Math.round(clamp(subj.creditWeight * 0.6 + heavy.weight * 100 * 0.4));
+      const band = gpaWeight >= 70 ? "High" : gpaWeight >= 45 ? "Moderate" : "Low";
+      evidence.push(
+        `GPA impact: ${band} — ${subj.credits}-credit subject · ${heavy.kind} worth ${Math.round(heavy.weight * 100)}% of grade`,
+      );
+      if (band === "High") {
+        expectedBenefit = `${m.expectedImpact} · high GPA leverage (${subj.credits} credits)`;
+      }
+    }
     const unlocks = c
       ? concepts.filter((x) => c.dependentIds.includes(x.id)).map((x) => x.name)
       : [];
