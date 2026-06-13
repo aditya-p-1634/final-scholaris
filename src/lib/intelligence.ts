@@ -1372,6 +1372,8 @@ export function useIntelligenceActions() {
     recordQuestionAssessment: useIntelligenceStore.getState().recordQuestionAssessment,
     advanceDay: useIntelligenceStore.getState().advanceDay,
     reset: useIntelligenceStore.getState().resetIntelligence,
+    hydrate: useIntelligenceStore.getState().hydrate,
+    clear: useIntelligenceStore.getState().clear,
   };
 }
 
