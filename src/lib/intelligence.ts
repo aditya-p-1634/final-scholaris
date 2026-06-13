@@ -879,22 +879,36 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
       expectedImpact: `A focused recovery would drop risk by ~${Math.round(x.propagatedRisk * 0.35)} pts${downstreamCount ? ` and ease pressure on ${downstreamCount} downstream concept${downstreamCount === 1 ? "" : "s"}` : ""}.`,
     };
 
+    // ROI explainability — concrete "why this ROI is high" contributors.
+    const rb = x.roiBreakdown;
+    const roiContributors: string[] = [];
+    if (rb.creditWeight >= 70) roiContributors.push(`${x.subjMeta?.credits ?? 3}-credit subject`);
+    if (x.subjMeta?.daysToAssessment !== undefined && x.subjMeta.daysToAssessment <= 14)
+      roiContributors.push(`Exam in ${x.subjMeta.daysToAssessment} day${x.subjMeta.daysToAssessment === 1 ? "" : "s"}`);
+    else if (rb.assessmentWeight >= 60)
+      roiContributors.push(`Heavily weighted assessment`);
+    if (downstreamCount >= 3) roiContributors.push(`Unlocks ${downstreamCount} concepts`);
+    if (rb.careerRelevance >= 75) roiContributors.push("High strategic value");
+    if (rb.riskReduction >= 50) roiContributors.push("Significant risk reduction");
+    if (rb.memoryRecovery >= 60) roiContributors.push("Strong memory recovery value");
+    if (roiContributors.length === 0) roiContributors.push("Steady marginal return");
+
     const explainRoi: ExplainBlock = {
-      reason: x.roiBreakdown.total >= 80
-        ? `${c.name} compounds: it unlocks ${downstreamCount} downstream concept${downstreamCount === 1 ? "" : "s"} and carries strategic weight in ${c.subjectName}.`
-        : x.roiBreakdown.total >= 60
-        ? `${c.name} returns above average — strategic value and current weakness combine into a strong target.`
-        : `${c.name} returns are moderate — high mastery means marginal gain is limited.`,
+      reason: rb.total >= 80
+        ? `${c.name} = ROI ${rb.total}: ${roiContributors.slice(0, 4).join(" · ")}.`
+        : rb.total >= 60
+        ? `${c.name} returns above average — ${roiContributors.slice(0, 3).join(" · ")}.`
+        : `${c.name} returns are moderate — ${roiContributors.slice(0, 2).join(" · ")}.`,
       factors: [
-        { label: "Exam weight", weight: 0.18, value: `${x.roiBreakdown.examWeight}/100` },
-        { label: "Dependency unlocks", weight: 0.16, value: `${x.roiBreakdown.dependencyUnlocks}/100` },
-        { label: "Future value", weight: 0.16, value: `${x.roiBreakdown.futureValue}/100` },
-        { label: "Strategic importance", weight: 0.18, value: `${x.roiBreakdown.strategicImportance}/100` },
-        { label: "Current weakness", weight: 0.18, value: `${x.roiBreakdown.currentWeakness}/100` },
-        { label: "Learning cost", weight: -0.10, value: `${x.roiBreakdown.learningCost}/100` },
+        { label: "Credit weight", weight: 0.16, value: `${rb.creditWeight}/100` },
+        { label: "Assessment weight", weight: 0.16, value: `${rb.assessmentWeight}/100` },
+        { label: "Dependency unlocks", weight: 0.14, value: `${rb.dependencyUnlocks}/100` },
+        { label: "Risk reduction", weight: 0.12, value: `${rb.riskReduction}/100` },
+        { label: "Strategic / career", weight: 0.16, value: `${rb.careerRelevance}/100` },
+        { label: "Estimated effort", weight: -0.20, value: `${rb.effort}/100` },
       ],
       confidence: Math.round(clamp(75 + (x.subjMeta?.examWeight ?? 0.3) * 20)),
-      expectedImpact: `~+${Math.round(x.roiBreakdown.total / 18)}% subject mastery per focused hour.`,
+      expectedImpact: `Academic return ${rb.academicReturn}/100 ÷ effort ${rb.effort}/100 → ROI ${rb.total}.`,
     };
 
     return {
