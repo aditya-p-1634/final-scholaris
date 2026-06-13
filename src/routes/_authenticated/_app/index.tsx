@@ -5,7 +5,7 @@ import {
   Activity, Brain, TrendingUp, ShieldAlert, Target, ArrowRight,
   Flame, Sparkles, AlertTriangle, Clock, Compass, GitBranch, Hourglass,
   Lightbulb, LineChart, Crosshair,
-  Trophy, Zap, HeartPulse, CheckCircle2, CalendarRange, TrendingDown,
+  Trophy, Zap, HeartPulse, CheckCircle2, TrendingDown,
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { PageHeader, StatCard, Panel, StatusDot, MetricBar, Explain, DeltaPill } from "@/components/widgets";
