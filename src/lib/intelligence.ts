@@ -1083,6 +1083,32 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
     }
 
     if (!type) continue;
+
+    // --- Academic Weighting escalation (Mission Priority V2) ---
+    // A heavy, high-credit subject with an imminent high-stakes assessment
+    // should outrank a light elective, even at equal concept-level risk.
+    const escalationNotes: string[] = [];
+    if (subj && (type === "recovery" || type === "reinforcement")) {
+      const heavy = subj.heaviestAssessment;
+      const window = subj.daysToAssessment;
+      const highCredit = subj.credits >= 4 || subj.creditWeight >= 75;
+      const heavyAssessmentSoon =
+        heavy.weight >= 0.4 && window !== undefined && window <= 10;
+      let escalate = false;
+      if (highCredit) {
+        escalate = true;
+        escalationNotes.push(`${subj.credits}-credit subject (academic weight ${subj.academicWeight}/100)`);
+      }
+      if (heavyAssessmentSoon) {
+        escalate = true;
+        escalationNotes.push(`${heavy.kind} worth ${Math.round(heavy.weight * 100)}% of grade in ${window}d`);
+      }
+      if (escalate) {
+        const bump = { low: "medium", medium: "high", high: "critical", critical: "critical" } as const;
+        priority = bump[priority];
+      }
+    }
+
     const id = `m-${type}-${c.id}`;
     const riskReduction = Math.round(
       type === "recovery" ? c.propagatedRisk * 0.55 + c.structuralRisk * 0.20
