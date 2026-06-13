@@ -965,6 +965,13 @@ export function deriveSubjects(s: Pick<State, "conceptsById" | "subjectsById">):
     const readiness = Math.round(clamp(mastery * 0.55 + memory * 0.35 + (100 - risk) * 0.10));
     const predictedLow = Math.max(35, readiness - 8);
     const predictedHigh = Math.min(99, readiness + 6);
+    const maxCredits = Math.max(1, ...Object.values(s.subjectsById).map((m) => m.credits || 3));
+    const credits = meta.credits ?? 3;
+    const creditWeight = Math.round(clamp((credits / maxCredits) * 100));
+    const heaviest = heaviestAssessment(meta.assessmentWeights ?? DEFAULT_ASSESSMENT_WEIGHTS);
+    const academicWeight = Math.round(clamp(
+      creditWeight * 0.5 + (meta.examWeight ?? 0.3) * 100 * 0.2 + (meta.strategicValue ?? 60) * 0.3
+    ));
     return {
       id: meta.id,
       name: meta.name,
@@ -977,6 +984,10 @@ export function deriveSubjects(s: Pick<State, "conceptsById" | "subjectsById">):
       nextAssessment: meta.nextAssessment,
       daysToAssessment: meta.daysToAssessment,
       examWeight: meta.examWeight,
+      credits,
+      creditWeight,
+      academicWeight,
+      heaviestAssessment: { kind: heaviest.kind, weight: heaviest.weight },
       dependencyHealth,
       readiness,
       predictedScore: { low: predictedLow, high: predictedHigh },
