@@ -912,6 +912,27 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
 
     if (!type) continue;
     const id = `m-${type}-${c.id}`;
+    const riskReduction = Math.round(
+      type === "recovery" ? c.propagatedRisk * 0.55
+      : type === "reinforcement" ? c.propagatedRisk * 0.30
+      : type === "expansion" ? c.unlockPotential * 0.20
+      : c.propagatedRisk * 0.18
+    );
+    const evidence: string[] = [
+      `Mastery ${c.mastery}/100 · memory ${c.memoryStrength}/100 · risk ${c.risk}`,
+      `Importance ${c.importance}/10 · last reviewed ${c.lastReviewed}`,
+    ];
+    if (c.prerequisiteIds.length) evidence.push(`${c.prerequisiteIds.length} prerequisite${c.prerequisiteIds.length === 1 ? "" : "s"} influencing this concept`);
+    if (c.dependentIds.length) evidence.push(`Unlocks ${c.dependentIds.length} downstream concept${c.dependentIds.length === 1 ? "" : "s"}`);
+    if (examSoon) evidence.push(`Exam in ${subj!.daysToAssessment}d · readiness ${subj!.readiness}/100`);
+    const confidence = Math.round(clamp(
+      72 + c.reviewCount * 1.4 + (c.assessmentAttempts > 0 ? 8 : 0) + (examSoon ? 6 : 0)
+    ));
+    const expectedImpact =
+      type === "recovery" ? `+${Math.round((100 - c.mastery) / 4)}% mastery · -${riskReduction} risk · +${c.memory.recoverySpeed} memory`
+      : type === "reinforcement" ? `+${Math.round(c.memory.recoverySpeed * 0.7)} memory · -${riskReduction} risk`
+      : type === "expansion" ? `Unlocks ${c.dependentIds.length} concept${c.dependentIds.length === 1 ? "" : "s"} · +ROI compounding`
+      : `Preserves mastery streak · -${riskReduction} forgetting probability`;
     out.push({
       id, title, description, type, priority,
       subjectId: c.subjectId, subjectName: c.subjectName,
@@ -921,6 +942,10 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
       reason,
       dueBy: priority === "critical" ? "today" : examSoon ? "tomorrow" : undefined,
       completed: completed.has(id),
+      evidence,
+      confidence,
+      expectedImpact,
+      riskReduction,
     });
   }
 
