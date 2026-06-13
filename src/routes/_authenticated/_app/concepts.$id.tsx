@@ -11,7 +11,7 @@ import { PageHeader, Panel, StatCard, StatusDot, MetricBar } from "@/components/
 import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/concepts/$id")({
+export const Route = createFileRoute("/_authenticated/_app/concepts/$id")({
   loader: ({ params }) => ({ id: params.id }),
   head: () => ({
     meta: [{ title: `Concept Intelligence — Scholaris` }],

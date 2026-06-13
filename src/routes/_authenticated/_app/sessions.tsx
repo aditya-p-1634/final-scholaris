@@ -3,7 +3,7 @@ import { Clock, Calendar, CheckCircle2, PlayCircle } from "lucide-react";
 import { PageHeader, Panel, StatCard, MetricBar } from "@/components/widgets";
 import { useIntelligence, computeSubjectReadiness, useIntelligenceStore } from "@/lib/intelligence";
 
-export const Route = createFileRoute("/sessions")({
+export const Route = createFileRoute("/_authenticated/_app/sessions")({
   head: () => ({ meta: [{ title: "Sessions & Assessments — Scholaris" }] }),
   component: SessionsHub,
 });

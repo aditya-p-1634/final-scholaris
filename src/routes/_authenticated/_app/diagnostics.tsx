@@ -10,7 +10,7 @@ import { PageHeader, Panel, StatCard, StatusDot } from "@/components/widgets";
 import { cn } from "@/lib/utils";
 import { useIntelligence, useIntelligenceActions, type IncidentCategory } from "@/lib/intelligence";
 
-export const Route = createFileRoute("/diagnostics")({
+export const Route = createFileRoute("/_authenticated/_app/diagnostics")({
   head: () => ({
     meta: [
       { title: "Diagnostics Center — Scholaris" },

@@ -14,7 +14,518 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      assessment_questions: {
+        Row: {
+          assessment_id: string
+          concept_id: string | null
+          correct: boolean
+          difficulty: number
+          id: string
+          user_id: string
+        }
+        Insert: {
+          assessment_id: string
+          concept_id?: string | null
+          correct: boolean
+          difficulty?: number
+          id?: string
+          user_id: string
+        }
+        Update: {
+          assessment_id?: string
+          concept_id?: string | null
+          correct?: boolean
+          difficulty?: number
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_questions_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_questions_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessments: {
+        Row: {
+          id: string
+          kind: string
+          notes: string | null
+          score: number | null
+          subject_id: string | null
+          taken_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          kind?: string
+          notes?: string | null
+          score?: number | null
+          subject_id?: string | null
+          taken_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          notes?: string | null
+          score?: number | null
+          subject_id?: string | null
+          taken_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessments_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concept_prerequisites: {
+        Row: {
+          concept_id: string
+          created_at: string
+          prerequisite_id: string
+          user_id: string
+        }
+        Insert: {
+          concept_id: string
+          created_at?: string
+          prerequisite_id: string
+          user_id: string
+        }
+        Update: {
+          concept_id?: string
+          created_at?: string
+          prerequisite_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concept_prerequisites_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_prerequisites_prerequisite_id_fkey"
+            columns: ["prerequisite_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concepts: {
+        Row: {
+          assessment_attempts: number
+          assessment_correct: number
+          created_at: string
+          days_since_review: number
+          decay_rate: number
+          failed_recalls: number
+          id: string
+          importance: number
+          last_reviewed_at: string | null
+          mastery: number
+          memory_strength: number
+          name: string
+          review_count: number
+          subject_id: string
+          successful_recalls: number
+          topic_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assessment_attempts?: number
+          assessment_correct?: number
+          created_at?: string
+          days_since_review?: number
+          decay_rate?: number
+          failed_recalls?: number
+          id?: string
+          importance?: number
+          last_reviewed_at?: string | null
+          mastery?: number
+          memory_strength?: number
+          name: string
+          review_count?: number
+          subject_id: string
+          successful_recalls?: number
+          topic_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assessment_attempts?: number
+          assessment_correct?: number
+          created_at?: string
+          days_since_review?: number
+          decay_rate?: number
+          failed_recalls?: number
+          id?: string
+          importance?: number
+          last_reviewed_at?: string | null
+          mastery?: number
+          memory_strength?: number
+          name?: string
+          review_count?: number
+          subject_id?: string
+          successful_recalls?: number
+          topic_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concepts_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concepts_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diagnostics: {
+        Row: {
+          body: string | null
+          concept_id: string | null
+          detected_at: string
+          id: string
+          kind: string
+          resolved_at: string | null
+          severity: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          concept_id?: string | null
+          detected_at?: string
+          id?: string
+          kind: string
+          resolved_at?: string | null
+          severity?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          concept_id?: string | null
+          detected_at?: string
+          id?: string
+          kind?: string
+          resolved_at?: string | null
+          severity?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostics_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      missions: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          concept_id: string | null
+          created_at: string
+          estimated_minutes: number
+          id: string
+          priority: string
+          reason: string | null
+          roi_score: number
+          subject_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          concept_id?: string | null
+          created_at?: string
+          estimated_minutes?: number
+          id?: string
+          priority?: string
+          reason?: string | null
+          roi_score?: number
+          subject_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          concept_id?: string | null
+          created_at?: string
+          estimated_minutes?: number
+          id?: string
+          priority?: string
+          reason?: string | null
+          roi_score?: number
+          subject_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missions_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          board: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          onboarded_at: string | null
+          program: string | null
+          semester: string | null
+          updated_at: string
+        }
+        Insert: {
+          board?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          onboarded_at?: string | null
+          program?: string | null
+          semester?: string | null
+          updated_at?: string
+        }
+        Update: {
+          board?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          onboarded_at?: string | null
+          program?: string | null
+          semester?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recommendations: {
+        Row: {
+          body: string | null
+          concept_id: string | null
+          confidence: number
+          created_at: string
+          dismissed: boolean
+          id: string
+          impact: number
+          kind: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          concept_id?: string | null
+          confidence?: number
+          created_at?: string
+          dismissed?: boolean
+          id?: string
+          impact?: number
+          kind: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          concept_id?: string | null
+          confidence?: number
+          created_at?: string
+          dismissed?: boolean
+          id?: string
+          impact?: number
+          kind?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendations_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          concept_id: string | null
+          duration_min: number
+          id: string
+          kind: string
+          outcome: string | null
+          started_at: string
+          subject_id: string | null
+          user_id: string
+        }
+        Insert: {
+          concept_id?: string | null
+          duration_min?: number
+          id?: string
+          kind?: string
+          outcome?: string | null
+          started_at?: string
+          subject_id?: string | null
+          user_id: string
+        }
+        Update: {
+          concept_id?: string | null
+          duration_min?: number
+          id?: string
+          kind?: string
+          outcome?: string | null
+          started_at?: string
+          subject_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subjects: {
+        Row: {
+          baseline_mastery: number
+          code: string | null
+          color: string
+          created_at: string
+          exam_weight: number
+          hours_this_week: number
+          id: string
+          name: string
+          next_assessment: string | null
+          rank: number
+          strategic_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          baseline_mastery?: number
+          code?: string | null
+          color?: string
+          created_at?: string
+          exam_weight?: number
+          hours_this_week?: number
+          id?: string
+          name: string
+          next_assessment?: string | null
+          rank?: number
+          strategic_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          baseline_mastery?: number
+          code?: string | null
+          color?: string
+          created_at?: string
+          exam_weight?: number
+          hours_this_week?: number
+          id?: string
+          name?: string
+          next_assessment?: string | null
+          rank?: number
+          strategic_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      topics: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          ordinal: number
+          subject_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          ordinal?: number
+          subject_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          ordinal?: number
+          subject_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topics_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -8,7 +8,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianG
 import { PageHeader, StatCard, Panel, StatusDot, MetricBar } from "@/components/widgets";
 import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/_app/")({
   head: () => ({
     meta: [
       { title: "Command Center — Scholaris" },

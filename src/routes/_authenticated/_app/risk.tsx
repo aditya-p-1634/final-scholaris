@@ -4,7 +4,7 @@ import { ScatterChart, Scatter, ResponsiveContainer, XAxis, YAxis, Tooltip, Cart
 import { PageHeader, Panel, StatCard } from "@/components/widgets";
 import { useIntelligence } from "@/lib/intelligence";
 
-export const Route = createFileRoute("/risk")({
+export const Route = createFileRoute("/_authenticated/_app/risk")({
   head: () => ({ meta: [{ title: "Risk Dashboard — Scholaris" }] }),
   component: RiskDashboard,
 });

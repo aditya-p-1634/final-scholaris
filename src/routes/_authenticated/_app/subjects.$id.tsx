@@ -13,7 +13,7 @@ import {
 } from "@/lib/intelligence";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/subjects/$id")({
+export const Route = createFileRoute("/_authenticated/_app/subjects/$id")({
   loader: ({ params }) => ({ id: params.id }),
   head: () => ({
     meta: [

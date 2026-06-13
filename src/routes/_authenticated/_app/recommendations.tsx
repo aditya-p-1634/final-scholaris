@@ -9,7 +9,7 @@ import { PageHeader, Panel, StatCard } from "@/components/widgets";
 import { cn } from "@/lib/utils";
 import { useIntelligence, useIntelligenceActions, type RecommendationCategory } from "@/lib/intelligence";
 
-export const Route = createFileRoute("/recommendations")({
+export const Route = createFileRoute("/_authenticated/_app/recommendations")({
   head: () => ({
     meta: [
       { title: "Recommendation Engine — Scholaris" },

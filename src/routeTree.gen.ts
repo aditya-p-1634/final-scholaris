@@ -9,131 +9,151 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SessionsRouteImport } from './routes/sessions'
-import { Route as RoiRouteImport } from './routes/roi'
-import { Route as RiskRouteImport } from './routes/risk'
-import { Route as RecommendationsRouteImport } from './routes/recommendations'
-import { Route as MissionsRouteImport } from './routes/missions'
-import { Route as MemoryRouteImport } from './routes/memory'
-import { Route as DiagnosticsRouteImport } from './routes/diagnostics'
-import { Route as ConceptsRouteImport } from './routes/concepts'
-import { Route as CoachRouteImport } from './routes/coach'
-import { Route as BattlefieldRouteImport } from './routes/battlefield'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as SubjectsIdRouteImport } from './routes/subjects.$id'
-import { Route as ConceptsIdRouteImport } from './routes/concepts.$id'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticated/_app/route'
+import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/_app/index'
+import { Route as AuthenticatedAppSessionsRouteImport } from './routes/_authenticated/_app/sessions'
+import { Route as AuthenticatedAppRoiRouteImport } from './routes/_authenticated/_app/roi'
+import { Route as AuthenticatedAppRiskRouteImport } from './routes/_authenticated/_app/risk'
+import { Route as AuthenticatedAppRecommendationsRouteImport } from './routes/_authenticated/_app/recommendations'
+import { Route as AuthenticatedAppMissionsRouteImport } from './routes/_authenticated/_app/missions'
+import { Route as AuthenticatedAppMemoryRouteImport } from './routes/_authenticated/_app/memory'
+import { Route as AuthenticatedAppDiagnosticsRouteImport } from './routes/_authenticated/_app/diagnostics'
+import { Route as AuthenticatedAppConceptsRouteImport } from './routes/_authenticated/_app/concepts'
+import { Route as AuthenticatedAppCoachRouteImport } from './routes/_authenticated/_app/coach'
+import { Route as AuthenticatedAppBattlefieldRouteImport } from './routes/_authenticated/_app/battlefield'
+import { Route as AuthenticatedAppSubjectsIdRouteImport } from './routes/_authenticated/_app/subjects.$id'
+import { Route as AuthenticatedAppConceptsIdRouteImport } from './routes/_authenticated/_app/concepts.$id'
 
-const SessionsRoute = SessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RoiRoute = RoiRouteImport.update({
-  id: '/roi',
-  path: '/roi',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedAppRouteRoute = AuthenticatedAppRouteRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const RiskRoute = RiskRouteImport.update({
-  id: '/risk',
-  path: '/risk',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecommendationsRoute = RecommendationsRouteImport.update({
-  id: '/recommendations',
-  path: '/recommendations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MissionsRoute = MissionsRouteImport.update({
-  id: '/missions',
-  path: '/missions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MemoryRoute = MemoryRouteImport.update({
-  id: '/memory',
-  path: '/memory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DiagnosticsRoute = DiagnosticsRouteImport.update({
-  id: '/diagnostics',
-  path: '/diagnostics',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConceptsRoute = ConceptsRouteImport.update({
-  id: '/concepts',
-  path: '/concepts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CoachRoute = CoachRouteImport.update({
-  id: '/coach',
-  path: '/coach',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BattlefieldRoute = BattlefieldRouteImport.update({
-  id: '/battlefield',
-  path: '/battlefield',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
+const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedAppRouteRoute,
 } as any)
-const SubjectsIdRoute = SubjectsIdRouteImport.update({
-  id: '/subjects/$id',
-  path: '/subjects/$id',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedAppSessionsRoute =
+  AuthenticatedAppSessionsRouteImport.update({
+    id: '/sessions',
+    path: '/sessions',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
+const AuthenticatedAppRoiRoute = AuthenticatedAppRoiRouteImport.update({
+  id: '/roi',
+  path: '/roi',
+  getParentRoute: () => AuthenticatedAppRouteRoute,
 } as any)
-const ConceptsIdRoute = ConceptsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ConceptsRoute,
+const AuthenticatedAppRiskRoute = AuthenticatedAppRiskRouteImport.update({
+  id: '/risk',
+  path: '/risk',
+  getParentRoute: () => AuthenticatedAppRouteRoute,
 } as any)
+const AuthenticatedAppRecommendationsRoute =
+  AuthenticatedAppRecommendationsRouteImport.update({
+    id: '/recommendations',
+    path: '/recommendations',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
+const AuthenticatedAppMissionsRoute =
+  AuthenticatedAppMissionsRouteImport.update({
+    id: '/missions',
+    path: '/missions',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
+const AuthenticatedAppMemoryRoute = AuthenticatedAppMemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => AuthenticatedAppRouteRoute,
+} as any)
+const AuthenticatedAppDiagnosticsRoute =
+  AuthenticatedAppDiagnosticsRouteImport.update({
+    id: '/diagnostics',
+    path: '/diagnostics',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
+const AuthenticatedAppConceptsRoute =
+  AuthenticatedAppConceptsRouteImport.update({
+    id: '/concepts',
+    path: '/concepts',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
+const AuthenticatedAppCoachRoute = AuthenticatedAppCoachRouteImport.update({
+  id: '/coach',
+  path: '/coach',
+  getParentRoute: () => AuthenticatedAppRouteRoute,
+} as any)
+const AuthenticatedAppBattlefieldRoute =
+  AuthenticatedAppBattlefieldRouteImport.update({
+    id: '/battlefield',
+    path: '/battlefield',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
+const AuthenticatedAppSubjectsIdRoute =
+  AuthenticatedAppSubjectsIdRouteImport.update({
+    id: '/subjects/$id',
+    path: '/subjects/$id',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
+const AuthenticatedAppConceptsIdRoute =
+  AuthenticatedAppConceptsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppConceptsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/battlefield': typeof BattlefieldRoute
-  '/coach': typeof CoachRoute
-  '/concepts': typeof ConceptsRouteWithChildren
-  '/diagnostics': typeof DiagnosticsRoute
-  '/memory': typeof MemoryRoute
-  '/missions': typeof MissionsRoute
-  '/recommendations': typeof RecommendationsRoute
-  '/risk': typeof RiskRoute
-  '/roi': typeof RoiRoute
-  '/sessions': typeof SessionsRoute
-  '/concepts/$id': typeof ConceptsIdRoute
-  '/subjects/$id': typeof SubjectsIdRoute
+  '/': typeof AuthenticatedAppIndexRoute
+  '/battlefield': typeof AuthenticatedAppBattlefieldRoute
+  '/coach': typeof AuthenticatedAppCoachRoute
+  '/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
+  '/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
+  '/memory': typeof AuthenticatedAppMemoryRoute
+  '/missions': typeof AuthenticatedAppMissionsRoute
+  '/recommendations': typeof AuthenticatedAppRecommendationsRoute
+  '/risk': typeof AuthenticatedAppRiskRoute
+  '/roi': typeof AuthenticatedAppRoiRoute
+  '/sessions': typeof AuthenticatedAppSessionsRoute
+  '/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
+  '/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/battlefield': typeof BattlefieldRoute
-  '/coach': typeof CoachRoute
-  '/concepts': typeof ConceptsRouteWithChildren
-  '/diagnostics': typeof DiagnosticsRoute
-  '/memory': typeof MemoryRoute
-  '/missions': typeof MissionsRoute
-  '/recommendations': typeof RecommendationsRoute
-  '/risk': typeof RiskRoute
-  '/roi': typeof RoiRoute
-  '/sessions': typeof SessionsRoute
-  '/concepts/$id': typeof ConceptsIdRoute
-  '/subjects/$id': typeof SubjectsIdRoute
+  '/': typeof AuthenticatedAppIndexRoute
+  '/battlefield': typeof AuthenticatedAppBattlefieldRoute
+  '/coach': typeof AuthenticatedAppCoachRoute
+  '/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
+  '/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
+  '/memory': typeof AuthenticatedAppMemoryRoute
+  '/missions': typeof AuthenticatedAppMissionsRoute
+  '/recommendations': typeof AuthenticatedAppRecommendationsRoute
+  '/risk': typeof AuthenticatedAppRiskRoute
+  '/roi': typeof AuthenticatedAppRoiRoute
+  '/sessions': typeof AuthenticatedAppSessionsRoute
+  '/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
+  '/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/battlefield': typeof BattlefieldRoute
-  '/coach': typeof CoachRoute
-  '/concepts': typeof ConceptsRouteWithChildren
-  '/diagnostics': typeof DiagnosticsRoute
-  '/memory': typeof MemoryRoute
-  '/missions': typeof MissionsRoute
-  '/recommendations': typeof RecommendationsRoute
-  '/risk': typeof RiskRoute
-  '/roi': typeof RoiRoute
-  '/sessions': typeof SessionsRoute
-  '/concepts/$id': typeof ConceptsIdRoute
-  '/subjects/$id': typeof SubjectsIdRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/_authenticated/_app': typeof AuthenticatedAppRouteRouteWithChildren
+  '/_authenticated/_app/battlefield': typeof AuthenticatedAppBattlefieldRoute
+  '/_authenticated/_app/coach': typeof AuthenticatedAppCoachRoute
+  '/_authenticated/_app/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
+  '/_authenticated/_app/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
+  '/_authenticated/_app/memory': typeof AuthenticatedAppMemoryRoute
+  '/_authenticated/_app/missions': typeof AuthenticatedAppMissionsRoute
+  '/_authenticated/_app/recommendations': typeof AuthenticatedAppRecommendationsRoute
+  '/_authenticated/_app/risk': typeof AuthenticatedAppRiskRoute
+  '/_authenticated/_app/roi': typeof AuthenticatedAppRoiRoute
+  '/_authenticated/_app/sessions': typeof AuthenticatedAppSessionsRoute
+  '/_authenticated/_app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/_app/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
+  '/_authenticated/_app/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -168,157 +188,199 @@ export interface FileRouteTypes {
     | '/subjects/$id'
   id:
     | '__root__'
-    | '/'
-    | '/battlefield'
-    | '/coach'
-    | '/concepts'
-    | '/diagnostics'
-    | '/memory'
-    | '/missions'
-    | '/recommendations'
-    | '/risk'
-    | '/roi'
-    | '/sessions'
-    | '/concepts/$id'
-    | '/subjects/$id'
+    | '/_authenticated'
+    | '/_authenticated/_app'
+    | '/_authenticated/_app/battlefield'
+    | '/_authenticated/_app/coach'
+    | '/_authenticated/_app/concepts'
+    | '/_authenticated/_app/diagnostics'
+    | '/_authenticated/_app/memory'
+    | '/_authenticated/_app/missions'
+    | '/_authenticated/_app/recommendations'
+    | '/_authenticated/_app/risk'
+    | '/_authenticated/_app/roi'
+    | '/_authenticated/_app/sessions'
+    | '/_authenticated/_app/'
+    | '/_authenticated/_app/concepts/$id'
+    | '/_authenticated/_app/subjects/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  BattlefieldRoute: typeof BattlefieldRoute
-  CoachRoute: typeof CoachRoute
-  ConceptsRoute: typeof ConceptsRouteWithChildren
-  DiagnosticsRoute: typeof DiagnosticsRoute
-  MemoryRoute: typeof MemoryRoute
-  MissionsRoute: typeof MissionsRoute
-  RecommendationsRoute: typeof RecommendationsRoute
-  RiskRoute: typeof RiskRoute
-  RoiRoute: typeof RoiRoute
-  SessionsRoute: typeof SessionsRoute
-  SubjectsIdRoute: typeof SubjectsIdRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sessions': {
-      id: '/sessions'
-      path: '/sessions'
-      fullPath: '/sessions'
-      preLoaderRoute: typeof SessionsRouteImport
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/roi': {
-      id: '/roi'
-      path: '/roi'
-      fullPath: '/roi'
-      preLoaderRoute: typeof RoiRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/_app': {
+      id: '/_authenticated/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedAppRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/risk': {
-      id: '/risk'
-      path: '/risk'
-      fullPath: '/risk'
-      preLoaderRoute: typeof RiskRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recommendations': {
-      id: '/recommendations'
-      path: '/recommendations'
-      fullPath: '/recommendations'
-      preLoaderRoute: typeof RecommendationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/missions': {
-      id: '/missions'
-      path: '/missions'
-      fullPath: '/missions'
-      preLoaderRoute: typeof MissionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/memory': {
-      id: '/memory'
-      path: '/memory'
-      fullPath: '/memory'
-      preLoaderRoute: typeof MemoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/diagnostics': {
-      id: '/diagnostics'
-      path: '/diagnostics'
-      fullPath: '/diagnostics'
-      preLoaderRoute: typeof DiagnosticsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/concepts': {
-      id: '/concepts'
-      path: '/concepts'
-      fullPath: '/concepts'
-      preLoaderRoute: typeof ConceptsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/coach': {
-      id: '/coach'
-      path: '/coach'
-      fullPath: '/coach'
-      preLoaderRoute: typeof CoachRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/battlefield': {
-      id: '/battlefield'
-      path: '/battlefield'
-      fullPath: '/battlefield'
-      preLoaderRoute: typeof BattlefieldRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_authenticated/_app/': {
+      id: '/_authenticated/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
     }
-    '/subjects/$id': {
-      id: '/subjects/$id'
+    '/_authenticated/_app/sessions': {
+      id: '/_authenticated/_app/sessions'
+      path: '/sessions'
+      fullPath: '/sessions'
+      preLoaderRoute: typeof AuthenticatedAppSessionsRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/roi': {
+      id: '/_authenticated/_app/roi'
+      path: '/roi'
+      fullPath: '/roi'
+      preLoaderRoute: typeof AuthenticatedAppRoiRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/risk': {
+      id: '/_authenticated/_app/risk'
+      path: '/risk'
+      fullPath: '/risk'
+      preLoaderRoute: typeof AuthenticatedAppRiskRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/recommendations': {
+      id: '/_authenticated/_app/recommendations'
+      path: '/recommendations'
+      fullPath: '/recommendations'
+      preLoaderRoute: typeof AuthenticatedAppRecommendationsRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/missions': {
+      id: '/_authenticated/_app/missions'
+      path: '/missions'
+      fullPath: '/missions'
+      preLoaderRoute: typeof AuthenticatedAppMissionsRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/memory': {
+      id: '/_authenticated/_app/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof AuthenticatedAppMemoryRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/diagnostics': {
+      id: '/_authenticated/_app/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/diagnostics'
+      preLoaderRoute: typeof AuthenticatedAppDiagnosticsRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/concepts': {
+      id: '/_authenticated/_app/concepts'
+      path: '/concepts'
+      fullPath: '/concepts'
+      preLoaderRoute: typeof AuthenticatedAppConceptsRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/coach': {
+      id: '/_authenticated/_app/coach'
+      path: '/coach'
+      fullPath: '/coach'
+      preLoaderRoute: typeof AuthenticatedAppCoachRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/battlefield': {
+      id: '/_authenticated/_app/battlefield'
+      path: '/battlefield'
+      fullPath: '/battlefield'
+      preLoaderRoute: typeof AuthenticatedAppBattlefieldRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/subjects/$id': {
+      id: '/_authenticated/_app/subjects/$id'
       path: '/subjects/$id'
       fullPath: '/subjects/$id'
-      preLoaderRoute: typeof SubjectsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAppSubjectsIdRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
     }
-    '/concepts/$id': {
-      id: '/concepts/$id'
+    '/_authenticated/_app/concepts/$id': {
+      id: '/_authenticated/_app/concepts/$id'
       path: '/$id'
       fullPath: '/concepts/$id'
-      preLoaderRoute: typeof ConceptsIdRouteImport
-      parentRoute: typeof ConceptsRoute
+      preLoaderRoute: typeof AuthenticatedAppConceptsIdRouteImport
+      parentRoute: typeof AuthenticatedAppConceptsRoute
     }
   }
 }
 
-interface ConceptsRouteChildren {
-  ConceptsIdRoute: typeof ConceptsIdRoute
+interface AuthenticatedAppConceptsRouteChildren {
+  AuthenticatedAppConceptsIdRoute: typeof AuthenticatedAppConceptsIdRoute
 }
 
-const ConceptsRouteChildren: ConceptsRouteChildren = {
-  ConceptsIdRoute: ConceptsIdRoute,
+const AuthenticatedAppConceptsRouteChildren: AuthenticatedAppConceptsRouteChildren =
+  {
+    AuthenticatedAppConceptsIdRoute: AuthenticatedAppConceptsIdRoute,
+  }
+
+const AuthenticatedAppConceptsRouteWithChildren =
+  AuthenticatedAppConceptsRoute._addFileChildren(
+    AuthenticatedAppConceptsRouteChildren,
+  )
+
+interface AuthenticatedAppRouteRouteChildren {
+  AuthenticatedAppBattlefieldRoute: typeof AuthenticatedAppBattlefieldRoute
+  AuthenticatedAppCoachRoute: typeof AuthenticatedAppCoachRoute
+  AuthenticatedAppConceptsRoute: typeof AuthenticatedAppConceptsRouteWithChildren
+  AuthenticatedAppDiagnosticsRoute: typeof AuthenticatedAppDiagnosticsRoute
+  AuthenticatedAppMemoryRoute: typeof AuthenticatedAppMemoryRoute
+  AuthenticatedAppMissionsRoute: typeof AuthenticatedAppMissionsRoute
+  AuthenticatedAppRecommendationsRoute: typeof AuthenticatedAppRecommendationsRoute
+  AuthenticatedAppRiskRoute: typeof AuthenticatedAppRiskRoute
+  AuthenticatedAppRoiRoute: typeof AuthenticatedAppRoiRoute
+  AuthenticatedAppSessionsRoute: typeof AuthenticatedAppSessionsRoute
+  AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedAppSubjectsIdRoute: typeof AuthenticatedAppSubjectsIdRoute
 }
 
-const ConceptsRouteWithChildren = ConceptsRoute._addFileChildren(
-  ConceptsRouteChildren,
-)
+const AuthenticatedAppRouteRouteChildren: AuthenticatedAppRouteRouteChildren = {
+  AuthenticatedAppBattlefieldRoute: AuthenticatedAppBattlefieldRoute,
+  AuthenticatedAppCoachRoute: AuthenticatedAppCoachRoute,
+  AuthenticatedAppConceptsRoute: AuthenticatedAppConceptsRouteWithChildren,
+  AuthenticatedAppDiagnosticsRoute: AuthenticatedAppDiagnosticsRoute,
+  AuthenticatedAppMemoryRoute: AuthenticatedAppMemoryRoute,
+  AuthenticatedAppMissionsRoute: AuthenticatedAppMissionsRoute,
+  AuthenticatedAppRecommendationsRoute: AuthenticatedAppRecommendationsRoute,
+  AuthenticatedAppRiskRoute: AuthenticatedAppRiskRoute,
+  AuthenticatedAppRoiRoute: AuthenticatedAppRoiRoute,
+  AuthenticatedAppSessionsRoute: AuthenticatedAppSessionsRoute,
+  AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedAppSubjectsIdRoute: AuthenticatedAppSubjectsIdRoute,
+}
+
+const AuthenticatedAppRouteRouteWithChildren =
+  AuthenticatedAppRouteRoute._addFileChildren(
+    AuthenticatedAppRouteRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAppRouteRoute: typeof AuthenticatedAppRouteRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAppRouteRoute: AuthenticatedAppRouteRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  BattlefieldRoute: BattlefieldRoute,
-  CoachRoute: CoachRoute,
-  ConceptsRoute: ConceptsRouteWithChildren,
-  DiagnosticsRoute: DiagnosticsRoute,
-  MemoryRoute: MemoryRoute,
-  MissionsRoute: MissionsRoute,
-  RecommendationsRoute: RecommendationsRoute,
-  RiskRoute: RiskRoute,
-  RoiRoute: RoiRoute,
-  SessionsRoute: SessionsRoute,
-  SubjectsIdRoute: SubjectsIdRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

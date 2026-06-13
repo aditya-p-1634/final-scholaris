@@ -4,7 +4,7 @@ import { Swords, TrendingUp, TrendingDown } from "lucide-react";
 import { PageHeader, Panel, StatusDot, MetricBar } from "@/components/widgets";
 import { useIntelligence } from "@/lib/intelligence";
 
-export const Route = createFileRoute("/battlefield")({
+export const Route = createFileRoute("/_authenticated/_app/battlefield")({
   head: () => ({
     meta: [
       { title: "Subject Battlefield — Scholaris" },
