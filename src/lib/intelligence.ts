@@ -102,6 +102,14 @@ export interface RoiBreakdown {
   strategicImportance: number;
   learningCost: number;
   currentWeakness: number;
+  // ROI Engine V2 — Academic Return ÷ Estimated Effort.
+  creditWeight: number;       // 0–100 — subject credit hours, normalized
+  assessmentWeight: number;   // 0–100 — grading scheme + exam proximity
+  riskReduction: number;      // 0–100 — risk this concept could shed
+  memoryRecovery: number;     // 0–100 — memory-strength recovery value
+  careerRelevance: number;    // 0–100 — long-term / career importance
+  academicReturn: number;     // 0–100 — composite expected return
+  effort: number;             // 0–100 — composite estimated effort
   total: number;
 }
 
