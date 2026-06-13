@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { useIntelligenceActions } from "@/lib/intelligence";
 import { loadProfile, loadWorkspace } from "@/lib/persistence";
 import { supabase } from "@/integrations/supabase/client";
+import { DEV_MODE, buildDevWorkspace } from "@/lib/dev-mode";
 
 export const Route = createFileRoute("/_authenticated/_app")({
   component: AppGate,
@@ -17,6 +18,11 @@ function AppGate() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (DEV_MODE) {
+        hydrate(buildDevWorkspace());
+        if (!cancelled) setReady(true);
+        return;
+      }
       const { data } = await supabase.auth.getUser();
       const user = data.user;
       if (!user) {
