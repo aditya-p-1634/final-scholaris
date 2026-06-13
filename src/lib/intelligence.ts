@@ -1003,36 +1003,37 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       m.type === "expansion" ? "expansion" :
       m.type === "assessment" ? "assessment" : "strategic";
     const urgency = m.priority;
-    const confidence = Math.round(clamp(70 + (c?.importance ?? 7) * 2 + (subj && subj.risk > 60 ? 8 : 0)));
     const impact = m.roiScore;
-    const evidence: string[] = [];
-    if (c) {
-      evidence.push(`Concept mastery ${c.mastery}/100, memory ${c.memoryStrength}/100`);
-      evidence.push(`Last reviewed ${c.lastReviewed} · ${c.reviewCount} reviews`);
-      evidence.push(`Decay rate ${c.decayRate.toFixed(2)} · importance ${c.importance}/10`);
+    // Pull live explanation factors from the concept's explain block.
+    const factors = c
+      ? (cat === "recovery" || cat === "assessment" ? c.explain.risk.factors : c.explain.roi.factors)
+      : [];
+    const evidence: string[] = [...m.evidence];
+    if (c?.dependentIds.length) {
+      const downstream = concepts
+        .filter((x) => c.dependentIds.includes(x.id))
+        .map((x) => x.name);
+      if (downstream.length) evidence.push(`Unlocks: ${downstream.slice(0, 3).join(", ")}${downstream.length > 3 ? "…" : ""}`);
     }
-    if (subj?.daysToAssessment !== undefined) evidence.push(`Next ${subj.name} assessment in ${subj.daysToAssessment}d`);
+    if (subj?.daysToAssessment !== undefined) evidence.push(`${subj.name} exam in ${subj.daysToAssessment}d · readiness ${subj.readiness}/100`);
+    const unlocks = c
+      ? concepts.filter((x) => c.dependentIds.includes(x.id)).map((x) => x.name)
+      : [];
     out.push({
       id: `r-${m.id}`,
       title: m.title,
       category: cat,
       reason: m.reason,
       evidence,
-      expectedBenefit: cat === "recovery"
-        ? `+${Math.round(m.roiScore / 12)} readiness · +${Math.round(m.roiScore / 18)}% subject mastery`
-        : cat === "reinforcement"
-        ? `+${Math.round(m.roiScore / 14)}% concept memory · prevent recovery next week`
-        : cat === "expansion"
-        ? `+1 mastered node · compounding ROI`
-        : cat === "assessment"
-        ? `Recalibrate ${m.conceptIds.length} concept signals`
-        : `Lower 30-day risk projection`,
-      confidence,
+      expectedBenefit: m.expectedImpact,
+      confidence: m.confidence,
       impact,
       urgency,
       minutes: m.estimatedMinutes,
       subjectId: m.subjectId,
       conceptId: m.conceptIds[0],
+      factors,
+      unlocks,
     });
   }
 
@@ -1046,9 +1047,9 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       category: "strategic",
       reason: `${dominant.name} is in dominant zone (${dominant.mastery} mastery, low decay). ${critical.name} is critical with risk ${critical.risk}.`,
       evidence: [
-        `${dominant.name}: mastery ${dominant.mastery}, risk ${dominant.risk}`,
-        `${critical.name}: mastery ${critical.mastery}, risk ${critical.risk}`,
-        critical.daysToAssessment !== undefined ? `Critical exam in ${critical.daysToAssessment}d` : `No exam scheduled — but risk is compounding`,
+        `${dominant.name}: mastery ${dominant.mastery}, risk ${dominant.risk}, dependency health ${dominant.dependencyHealth}`,
+        `${critical.name}: mastery ${critical.mastery}, risk ${critical.risk}, dependency health ${critical.dependencyHealth}`,
+        critical.daysToAssessment !== undefined ? `Critical exam in ${critical.daysToAssessment}d (readiness ${critical.readiness}/100)` : `No exam scheduled — but risk is compounding`,
       ],
       expectedBenefit: `-${Math.round(critical.risk / 6)} risk on ${critical.code} · negligible ${dominant.code} decay`,
       confidence: 86,
@@ -1056,6 +1057,13 @@ export function deriveRecommendations(s: Pick<State, "conceptsById" | "subjectsB
       urgency: "high",
       minutes: 120,
       subjectId: critical.id,
+      factors: [
+        { label: "Critical-subject risk", weight: 0.35, value: `${critical.risk}/100` },
+        { label: "Dominant-subject buffer", weight: 0.25, value: `${dominant.mastery}/100` },
+        { label: "Exam proximity", weight: 0.25, value: critical.daysToAssessment !== undefined ? `${critical.daysToAssessment}d` : "n/a" },
+        { label: "Dependency health gap", weight: 0.15, value: `${dominant.dependencyHealth - critical.dependencyHealth} pts` },
+      ],
+      unlocks: [],
     });
   }
 
