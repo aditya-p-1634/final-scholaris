@@ -42,9 +42,10 @@ function CoachDashboard() {
     <div>
       <PageHeader
         eyebrow="Intelligence"
-        title="AI Coach"
-        description="An academic strategist with full context of your concept graph, memory state and goals."
+        title="Academic Strategist"
+        description="A future-aware strategist that reasons over your concept graph, personalised memory model and predicted trajectories."
       />
+
 
       <div className="grid lg:grid-cols-3 gap-4">
         <Panel className="lg:col-span-2 flex flex-col min-h-[560px]">
