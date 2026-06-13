@@ -43,6 +43,12 @@ function CommandCenter() {
     }
   };
 
+  // First-run / empty workspace — no subjects seeded yet.
+  if (subjects.length === 0) {
+    return <FirstRunCommandCenter />;
+  }
+
+
   return (
     <div>
       <PageHeader
