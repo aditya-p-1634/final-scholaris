@@ -27,6 +27,8 @@ export interface SubjectMeta {
   daysToAssessment?: number;
   hoursThisWeek: number;
   baselineMastery: number; // snapshot for trend calc
+  examWeight: number; // 0–1: importance of upcoming exam
+  strategicValue: number; // 0–100: long-term value within the program
 }
 
 export interface ConceptCore {
@@ -41,13 +43,78 @@ export interface ConceptCore {
   decayRate: number; // per day
   daysSinceReview: number;
   reviewCount: number;
+  // Advanced memory signal — updated by sessions/assessments
+  successfulRecalls: number;
+  failedRecalls: number;
+  assessmentAttempts: number;
+  assessmentCorrect: number;
+}
+
+// ---------------- Knowledge graph (prerequisites) ----------------
+// Concept A is a prerequisite of Concept B if B depends on A's mastery.
+// Drives dependency-aware risk propagation, bottleneck detection,
+// and critical-path analysis.
+export const PREREQUISITES: Record<string, string[]> = {
+  "c-1": [],
+  "c-2": ["c-1"],                 // Stereochemistry depends on SN2 mechanism
+  "c-11": ["c-1"],                // Diels-Alder depends on SN2 / arrow-pushing
+  "c-3": [],
+  "c-4": ["c-3"],                 // Gram-Schmidt depends on eigenstructure
+  "c-12": ["c-3", "c-4"],         // SVD depends on eigen + orthogonality
+  "c-5": [],
+  "c-6": ["c-5"],                 // Na/K pump after metabolism foundation
+  "c-7": [],
+  "c-9": [],                      // Hilbert spaces
+  "c-8": ["c-9", "c-3"],          // Schrödinger needs Hilbert + linear algebra
+  "c-10": [],
+};
+
+export interface ExplainBlock {
+  reason: string;
+  factors: { label: string; weight: number; value: string }[];
+  confidence: number; // 0–100
+  expectedImpact?: string;
+}
+
+export interface RoiBreakdown {
+  examWeight: number;
+  dependencyUnlocks: number;
+  futureValue: number;
+  strategicImportance: number;
+  learningCost: number;
+  currentWeakness: number;
+  total: number;
+}
+
+export interface MemoryProfile {
+  stability: number;            // 0–100
+  recallConfidence: number;     // 0–100
+  reviewSuccessRate: number;    // 0–100
+  recoverySpeed: number;        // mastery gained per recovery session
+  retentionReliability: number; // 0–100
+  predictedForgettingDays: number;
+  predictedForgettingDate: string;
 }
 
 export interface DerivedConcept extends ConceptCore {
   roi: number;
   risk: number;
+  baseRisk: number;
+  propagatedRisk: number;
   status: ConceptStatus;
   lastReviewed: string;
+  // Knowledge graph
+  prerequisiteIds: string[];
+  dependentIds: string[];
+  unlockPotential: number;       // 0–100
+  bottleneckScore: number;       // 0–100
+  isCriticalPath: boolean;
+  // Advanced memory
+  memory: MemoryProfile;
+  // Advanced ROI
+  roiBreakdown: RoiBreakdown;
+  // Explainability
+  explain: { risk: ExplainBlock; roi: ExplainBlock };
 }
 
 export interface DerivedSubject {
@@ -67,6 +134,10 @@ export interface DerivedSubject {
   hoursThisWeek: number;
   nextAssessment?: string;
   daysToAssessment?: number;
+  examWeight: number;
+  dependencyHealth: number;
+  predictedScore: { low: number; high: number };
+  readiness: number;
 }
 
 export interface SessionLogEntry {
@@ -82,6 +153,12 @@ export interface SessionLogEntry {
   dateLabel: string;
 }
 
+export interface QuestionOutcome {
+  conceptId: string;
+  correct: boolean;
+  difficulty?: number; // 1–10, default 5
+}
+
 export interface AssessmentLogEntry {
   id: string;
   subjectId: string;
@@ -90,6 +167,7 @@ export interface AssessmentLogEntry {
   predicted: number;
   actual: number;
   timestamp: number;
+  questions?: QuestionOutcome[];
 }
 
 export interface DerivedMission {
