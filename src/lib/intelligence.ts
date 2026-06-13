@@ -631,32 +631,93 @@ function deriveMemoryProfile(c: ConceptCore): MemoryProfile {
   };
 }
 
-// Multi-factor ROI breakdown — each factor contributes to total ROI.
+// Heaviest single component of a subject's grading scheme.
+function heaviestAssessment(w: AssessmentWeights): { kind: string; weight: number } {
+  const entries: [string, number][] = [
+    ["Final exam", w.final],
+    ["Midterm", w.midterm],
+    ["Assignments", w.assignment],
+    ["Lab", w.lab],
+    ["Project", w.project],
+  ];
+  return entries.reduce(
+    (best, [kind, weight]) => (weight > best.weight ? { kind, weight } : best),
+    { kind: "Final exam", weight: 0 },
+  );
+}
+
+// How close & how heavy the next assessment is, 0–100.
+function examProximityScore(subjMeta: SubjectMeta | undefined): number {
+  if (!subjMeta) return 30;
+  const days = subjMeta.daysToAssessment;
+  const proximity = days === undefined ? 25 : clamp(100 - days * 5);
+  const heaviest = heaviestAssessment(subjMeta.assessmentWeights).weight; // 0–1
+  return Math.round(clamp(proximity * 0.6 + heaviest * 100 * 0.25 + (subjMeta.examWeight ?? 0.3) * 100 * 0.15));
+}
+
+// ROI Engine V2 — Expected Academic Return ÷ Estimated Effort.
+// Return blends credit weight, assessment weight, dependency unlock value,
+// future/strategic value, risk-reduction and memory-recovery value, exam
+// proximity, and career relevance. Effort blends difficulty, study time and
+// recovery complexity. ROI = (return / effort), normalized to 0–100.
 function deriveRoiBreakdown(
   c: ConceptCore,
   subjMeta: SubjectMeta | undefined,
   dependentCount: number,
   prerequisiteHealthGap: number,
+  creditWeight: number,
 ): RoiBreakdown {
   const examWeight = Math.round(clamp((subjMeta?.examWeight ?? 0.3) * 100));
+  const assessmentWeight = examProximityScore(subjMeta);
   // Each unlocked dependent compounds future returns.
   const dependencyUnlocks = Math.round(clamp(dependentCount * 14 + prerequisiteHealthGap * 0.4, 0, 100));
   const futureValue = Math.round(clamp((subjMeta?.strategicValue ?? 60) * 0.7 + c.importance * 3));
   const strategicImportance = Math.round(clamp(c.importance * 9 + (subjMeta?.strategicValue ?? 60) * 0.15));
-  // Lower learning cost = higher ROI contribution. Cost rises with decay & weakness.
-  const learningCost = Math.round(clamp(
-    (100 - c.mastery) * 0.4 + c.decayRate * 80 + Math.min(c.daysSinceReview, 30) * 0.6
-  ));
+  const careerRelevance = Math.round(clamp(subjMeta?.strategicValue ?? 60));
+  // Risk this concept can shed if recovered (room to improve).
+  const riskReduction = Math.round(clamp(baseConceptRisk(c)));
+  const memoryRecovery = Math.round(clamp((100 - c.memoryStrength) * 0.7 + c.importance * 3));
   const currentWeakness = Math.round(clamp((100 - c.mastery) * 0.6 + (100 - c.memoryStrength) * 0.4));
-  const total = Math.round(clamp(
-    examWeight * 0.18 +
-    dependencyUnlocks * 0.16 +
-    futureValue * 0.16 +
-    strategicImportance * 0.18 +
-    currentWeakness * 0.18 -
-    learningCost * 0.10 + 22
+
+  // Expected academic return (0–100) — weights sum to 1.
+  const academicReturn = Math.round(clamp(
+    creditWeight * 0.16 +
+    assessmentWeight * 0.16 +
+    dependencyUnlocks * 0.14 +
+    futureValue * 0.10 +
+    strategicImportance * 0.10 +
+    riskReduction * 0.12 +
+    memoryRecovery * 0.08 +
+    careerRelevance * 0.06 +
+    currentWeakness * 0.08
   ));
-  return { examWeight, dependencyUnlocks, futureValue, strategicImportance, learningCost, currentWeakness, total };
+
+  // Estimated effort (0–100): difficulty + study time + recovery complexity.
+  const difficulty = clamp(c.importance * 5 + c.decayRate * 70);
+  const studyTime = clamp((100 - c.mastery) * 0.8);
+  const recoveryComplexity = clamp((100 - c.memoryStrength) * 0.5 + Math.min(c.daysSinceReview, 30) * 0.8);
+  const effort = Math.round(clamp(difficulty * 0.35 + studyTime * 0.4 + recoveryComplexity * 0.25));
+  const learningCost = effort; // back-compat alias
+
+  // ROI = return / effort, scaled. Floor effort so trivial concepts don't explode.
+  const total = Math.round(clamp((academicReturn / Math.max(28, effort)) * 58));
+
+  return {
+    examWeight,
+    dependencyUnlocks,
+    futureValue,
+    strategicImportance,
+    learningCost,
+    currentWeakness,
+    creditWeight: Math.round(creditWeight),
+    assessmentWeight,
+    riskReduction,
+    memoryRecovery,
+    careerRelevance,
+    academicReturn,
+    effort,
+    total,
+  };
 }
 
 export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">): DerivedConcept[] {
