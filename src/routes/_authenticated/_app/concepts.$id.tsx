@@ -325,14 +325,27 @@ function ConceptIntelligence() {
             <CoachLine
               tone={c.risk > 60 ? "danger" : c.risk > 40 ? "warning" : "success"}
               label="Why risk is here"
-              text={c.risk > 60
+              text={c.structuralRisk >= 8
+                ? `Risk ${c.risk}/100 — base risk ${c.baseRisk} plus +${c.structuralRisk} structural pressure from ${weakPrereqs.length} weak prerequisite${weakPrereqs.length === 1 ? "" : "s"}${weakPrereqs[0] ? ` (e.g. ${weakPrereqs[0].name})` : ""}. The foundation is softening underneath this node.`
+                : c.risk > 60
                 ? `Risk ${c.risk}/100 — decay rate ${c.decayRate.toFixed(2)} combined with importance ${c.importance}/10 makes this concept a critical liability.`
                 : `Risk ${c.risk}/100 — concept is in a manageable band given current memory and review cadence.`}
             />
             <CoachLine
+              tone={c.isBottleneck ? "danger" : c.downstreamCount > 0 ? "info" : "success"}
+              label="Graph position"
+              text={c.isBottleneck
+                ? `Bottleneck — gates ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"} (${c.dependentIds.length} direct, depth ${c.dependencyDepth}). Recovering this releases compounded risk across ${downstreamAll.slice(0, 2).map((d) => d.name).join(", ") || "the chain"}.`
+                : c.downstreamCount > 0
+                ? `Sits ${c.dependencyDepth} level${c.dependencyDepth === 1 ? "" : "s"} deep. Mastering this unlocks ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"} (${c.dependentIds.length} direct). Structural importance ${c.structuralImportance}/100.`
+                : `Leaf node in the graph — no downstream dependencies. Treat as a terminal mastery target.`}
+            />
+            <CoachLine
               tone="success"
               label="What should happen next"
-              text={c.mastery < 40
+              text={c.isBottleneck
+                ? `Prioritize recovery. Clearing this bottleneck reduces risk on ${c.downstreamCount} downstream node${c.downstreamCount === 1 ? "" : "s"} by an estimated ${Math.round(c.propagatedRisk * 0.35)} pts each.`
+                : c.mastery < 40
                 ? `Recover immediately. A focused ${Math.max(18, Math.round((100 - c.mastery) / 3))}-minute active-recall sprint will lift mastery into the stable zone and reduce downstream risk.`
                 : c.mastery < 70
                 ? `Reinforce. Schedule one spaced-repetition pass within 48 hours to push this concept into the strong band.`
