@@ -1,11 +1,46 @@
-import { useState } from "react";
-import { Search, Moon, Sun, Command, Bell } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, Moon, Sun, Command, Bell, LogOut, User } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { useTheme } from "./theme-provider";
 import { GlobalSearch } from "./global-search";
+import { supabase } from "@/integrations/supabase/client";
+import { useIntelligenceActions } from "@/lib/intelligence";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function TopBar() {
   const { theme, toggle } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [email, setEmail] = useState<string>("");
+  const [initials, setInitials] = useState("·");
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { clear } = useIntelligenceActions();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user;
+      if (!u) return;
+      setEmail(u.email ?? "");
+      const name = (u.user_metadata?.display_name as string | undefined) ?? u.email ?? "";
+      setInitials(
+        name
+          .split(/[\s@.]+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((s) => s[0]?.toUpperCase())
+          .join("") || "·",
+      );
+    });
+  }, []);
+
+  const signOut = async () => {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
 
   return (
     <>
@@ -36,6 +71,37 @@ export function TopBar() {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen((o) => !o)}
+                className="h-9 w-9 grid place-items-center rounded-full bg-gradient-to-br from-chart-1 to-chart-4 text-[11px] font-semibold text-primary-foreground"
+                aria-label="Account"
+              >
+                {initials}
+              </button>
+              {menuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-11 z-40 w-56 rounded-md border border-border bg-popover shadow-lg p-1">
+                    <div className="px-3 py-2 border-b border-border">
+                      <div className="text-xs font-medium text-foreground truncate flex items-center gap-2">
+                        <User className="h-3 w-3" />
+                        {email || "Signed in"}
+                      </div>
+                    </div>
+                    <button
+                      onClick={signOut}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-sm"
+                    >
+                      <LogOut className="h-3.5 w-3.5" /> Sign out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticated/_app/route'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/_app/index'
 import { Route as AuthenticatedAppSessionsRouteImport } from './routes/_authenticated/_app/sessions'
@@ -25,9 +27,19 @@ import { Route as AuthenticatedAppBattlefieldRouteImport } from './routes/_authe
 import { Route as AuthenticatedAppSubjectsIdRouteImport } from './routes/_authenticated/_app/subjects.$id'
 import { Route as AuthenticatedAppConceptsIdRouteImport } from './routes/_authenticated/_app/concepts.$id'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAppRouteRoute = AuthenticatedAppRouteRouteImport.update({
   id: '/_app',
@@ -109,6 +121,8 @@ const AuthenticatedAppConceptsIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedAppIndexRoute
+  '/auth': typeof AuthRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/battlefield': typeof AuthenticatedAppBattlefieldRoute
   '/coach': typeof AuthenticatedAppCoachRoute
   '/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
@@ -124,6 +138,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedAppIndexRoute
+  '/auth': typeof AuthRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/battlefield': typeof AuthenticatedAppBattlefieldRoute
   '/coach': typeof AuthenticatedAppCoachRoute
   '/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
@@ -140,7 +156,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/_authenticated/_app': typeof AuthenticatedAppRouteRouteWithChildren
+  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/_app/battlefield': typeof AuthenticatedAppBattlefieldRoute
   '/_authenticated/_app/coach': typeof AuthenticatedAppCoachRoute
   '/_authenticated/_app/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
@@ -159,6 +177,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
+    | '/onboarding'
     | '/battlefield'
     | '/coach'
     | '/concepts'
@@ -174,6 +194,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
+    | '/onboarding'
     | '/battlefield'
     | '/coach'
     | '/concepts'
@@ -189,7 +211,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/auth'
     | '/_authenticated/_app'
+    | '/_authenticated/onboarding'
     | '/_authenticated/_app/battlefield'
     | '/_authenticated/_app/coach'
     | '/_authenticated/_app/concepts'
@@ -207,16 +231,31 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/onboarding': {
+      id: '/_authenticated/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/_app': {
       id: '/_authenticated/_app'
@@ -370,10 +409,12 @@ const AuthenticatedAppRouteRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppRouteRoute: typeof AuthenticatedAppRouteRouteWithChildren
+  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppRouteRoute: AuthenticatedAppRouteRouteWithChildren,
+  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -381,6 +422,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

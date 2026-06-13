@@ -7,14 +7,21 @@
 
 import { create } from "zustand";
 import { useSyncExternalStore } from "react";
-import {
-  subjects as seedSubjects,
-  concepts as seedConcepts,
-  type SubjectStatus,
-  type ConceptStatus,
-  type MissionPriority,
-  type MissionType,
+import type {
+  SubjectStatus,
+  ConceptStatus,
+  MissionPriority,
+  MissionType,
 } from "./mock-data";
+import {
+  persistSession,
+  persistAssessment,
+  persistConceptPatch,
+  persistConceptsBatch,
+  persistMissionCompletion,
+  persistAdvanceDay,
+  type WorkspacePayload,
+} from "./persistence";
 
 // ---------------- Types ----------------
 
@@ -54,20 +61,11 @@ export interface ConceptCore {
 // Concept A is a prerequisite of Concept B if B depends on A's mastery.
 // Drives dependency-aware risk propagation, bottleneck detection,
 // and critical-path analysis.
-export const PREREQUISITES: Record<string, string[]> = {
-  "c-1": [],
-  "c-2": ["c-1"],                 // Stereochemistry depends on SN2 mechanism
-  "c-11": ["c-1"],                // Diels-Alder depends on SN2 / arrow-pushing
-  "c-3": [],
-  "c-4": ["c-3"],                 // Gram-Schmidt depends on eigenstructure
-  "c-12": ["c-3", "c-4"],         // SVD depends on eigen + orthogonality
-  "c-5": [],
-  "c-6": ["c-5"],                 // Na/K pump after metabolism foundation
-  "c-7": [],
-  "c-9": [],                      // Hilbert spaces
-  "c-8": ["c-9", "c-3"],          // Schrödinger needs Hilbert + linear algebra
-  "c-10": [],
-};
+// Populated on hydrate() from the concept_prerequisites table.
+export let PREREQUISITES: Record<string, string[]> = {};
+export function setPrerequisites(p: Record<string, string[]>) {
+  PREREQUISITES = p;
+}
 
 export interface ExplainBlock {
   reason: string;
@@ -287,10 +285,11 @@ interface State {
   runSession: (input: { conceptId: string; type?: SessionLogEntry["type"]; minutes?: number }) => SessionLogEntry | null;
   runMission: (missionId: string) => void;
   recordAssessment: (input: { subjectId: string; title: string; actual: number }) => void;
-  // Question-level (concept-aware) assessment intake.
   recordQuestionAssessment: (input: { subjectId: string; title: string; questions: QuestionOutcome[] }) => AssessmentLogEntry | null;
   advanceDay: (n?: number) => void;
   resetIntelligence: () => void;
+  hydrate: (payload: WorkspacePayload) => void;
+  clear: () => void;
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -312,88 +311,17 @@ const SUBJECT_STRATEGIC_VALUE: Record<string, number> = {
   "sub-1": 88, "sub-2": 92, "sub-3": 70, "sub-4": 64, "sub-5": 95, "sub-6": 55,
 };
 
-function seedState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "recordQuestionAssessment" | "advanceDay" | "resetIntelligence"> {
-  const subjectsById: Record<string, SubjectMeta> = {};
-  for (const s of seedSubjects) {
-    const daysTo = s.nextAssessment ? Math.max(0, daysBetween(s.nextAssessment)) : undefined;
-    subjectsById[s.id] = {
-      id: s.id,
-      name: s.name,
-      code: s.code,
-      color: s.color,
-      nextAssessment: s.nextAssessment,
-      daysToAssessment: daysTo,
-      hoursThisWeek: s.hoursThisWeek,
-      baselineMastery: s.mastery - s.trend,
-      // Exams within a week weigh heavily; further-out exams less so.
-      examWeight: daysTo === undefined ? 0.25 : clamp(1 - daysTo / 30, 0.2, 1) as number,
-      strategicValue: SUBJECT_STRATEGIC_VALUE[s.id] ?? 60,
-    };
-  }
-  const conceptsById: Record<string, ConceptCore> = {};
-  for (const c of seedConcepts) {
-    // Seed recall history from existing review count so memory metrics
-    // have something to work with on first load.
-    const successes = Math.max(0, Math.round(c.reviewCount * (c.mastery / 100)));
-    const failures = Math.max(0, c.reviewCount - successes);
-    conceptsById[c.id] = {
-      id: c.id,
-      name: c.name,
-      subjectId: c.subjectId,
-      subjectName: c.subjectName,
-      topic: c.topic,
-      mastery: c.mastery,
-      memoryStrength: c.memoryStrength,
-      importance: c.importance,
-      decayRate: c.decayRate,
-      daysSinceReview: parseLastReviewed(c.lastReviewed),
-      reviewCount: c.reviewCount,
-      successfulRecalls: successes,
-      failedRecalls: failures,
-      assessmentAttempts: 0,
-      assessmentCorrect: 0,
-    };
-  }
-  // Seed a couple of historical sessions and one underperforming assessment
-  // so Diagnostics and Sessions have data on first load.
-  const now = Date.now();
-  const sessions: SessionLogEntry[] = [
-    {
-      id: "seed-s1", conceptId: "c-1", conceptName: "SN2 Reaction Mechanism",
-      subjectId: "sub-1", subjectName: "Organic Chemistry",
-      type: "Review", duration: 16, gain: 4,
-      timestamp: now - 1000 * 60 * 60 * 4, dateLabel: "Today, 08:30",
-    },
-    {
-      id: "seed-s2", conceptId: "c-3", conceptName: "Eigenvalues & Eigenvectors",
-      subjectId: "sub-2", subjectName: "Linear Algebra",
-      type: "Reinforcement", duration: 28, gain: 6,
-      timestamp: now - 1000 * 60 * 60 * 22, dateLabel: "Yesterday, 16:40",
-    },
-    {
-      id: "seed-s3", conceptId: "c-5", conceptName: "Krebs Cycle",
-      subjectId: "sub-3", subjectName: "Cellular Biology",
-      type: "Diagnostic", duration: 18, gain: 8,
-      timestamp: now - 1000 * 60 * 60 * 26, dateLabel: "Yesterday, 21:02",
-    },
-  ];
-  const assessments: AssessmentLogEntry[] = [
-    {
-      id: "seed-a1", subjectId: "sub-4", subjectName: "Macroeconomics",
-      title: "Practice quiz", predicted: 71, actual: 52,
-      timestamp: now - 1000 * 60 * 60 * 50,
-    },
-  ];
+function emptyState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "recordQuestionAssessment" | "advanceDay" | "resetIntelligence" | "hydrate" | "clear"> {
   return {
-    conceptsById,
-    subjectsById,
-    sessions,
-    assessments,
+    conceptsById: {},
+    subjectsById: {},
+    sessions: [],
+    assessments: [],
     completedMissionIds: [],
   };
 }
 
-const initial = seedState();
+const initial = emptyState();
 
 export const useIntelligenceStore = create<State>((set, get) => ({
   version: 0,
@@ -435,12 +363,12 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       conceptsById: { ...s.conceptsById, [conceptId]: updated },
       sessions: [entry, ...s.sessions].slice(0, 30),
     }));
+    void persistSession(entry);
+    void persistConceptPatch(conceptId, updated);
     return entry;
   },
 
   runMission: (missionId) => {
-    // Look up the derived mission, apply session effects to every concept it
-    // targets, and mark it completed so dashboards reflect the win.
     const missions = deriveMissions(get());
     const m = missions.find((x) => x.id === missionId);
     if (!m) return;
@@ -456,6 +384,7 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       version: s.version + 1,
       completedMissionIds: [...new Set([...s.completedMissionIds, missionId])],
     }));
+    void persistMissionCompletion(m);
   },
 
   recordAssessment: ({ subjectId, title, actual }) => {
@@ -486,6 +415,10 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       assessments: [entry, ...s.assessments].slice(0, 20),
       conceptsById: concepts,
     }));
+    void persistAssessment(entry);
+    const patches: Record<string, ConceptCore> = {};
+    for (const c of Object.values(concepts)) if (c.subjectId === subjectId) patches[c.id] = c;
+    void persistConceptsBatch(patches);
   },
 
   advanceDay: (n = 1) => {
@@ -506,6 +439,7 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       };
     }
     set((st) => ({ version: st.version + 1, conceptsById: concepts, subjectsById: subjects }));
+    void persistAdvanceDay(Object.values(concepts).map((c) => ({ id: c.id, daysSinceReview: c.daysSinceReview, memoryStrength: c.memoryStrength })));
   },
 
   recordQuestionAssessment: ({ subjectId, title, questions }) => {
@@ -554,10 +488,31 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       conceptsById: conceptsMap,
       assessments: [entry, ...s.assessments].slice(0, 20),
     }));
+    void persistAssessment(entry);
+    const patches: Record<string, ConceptCore> = {};
+    for (const q of questions) if (conceptsMap[q.conceptId]) patches[q.conceptId] = conceptsMap[q.conceptId];
+    void persistConceptsBatch(patches);
     return entry;
   },
 
-  resetIntelligence: () => set(() => ({ version: 0, ...seedState() })),
+  resetIntelligence: () => set(() => ({ version: 0, ...emptyState() })),
+
+  hydrate: (payload) => {
+    setPrerequisites(payload.prereqs);
+    set((s) => ({
+      version: s.version + 1,
+      conceptsById: payload.conceptsById,
+      subjectsById: payload.subjectsById,
+      sessions: payload.sessions,
+      assessments: payload.assessments,
+      completedMissionIds: payload.completedMissionIds,
+    }));
+  },
+
+  clear: () => {
+    setPrerequisites({});
+    set((s) => ({ ...emptyState(), version: s.version + 1 }));
+  },
 }));
 
 // ---------------- Pure derivation ----------------
@@ -1417,6 +1372,8 @@ export function useIntelligenceActions() {
     recordQuestionAssessment: useIntelligenceStore.getState().recordQuestionAssessment,
     advanceDay: useIntelligenceStore.getState().advanceDay,
     reset: useIntelligenceStore.getState().resetIntelligence,
+    hydrate: useIntelligenceStore.getState().hydrate,
+    clear: useIntelligenceStore.getState().clear,
   };
 }
 
