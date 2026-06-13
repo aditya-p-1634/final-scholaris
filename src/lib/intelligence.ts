@@ -25,6 +25,24 @@ import {
 
 // ---------------- Types ----------------
 
+// Academic grading scheme — how a subject's grade is composed.
+// Weights are 0–1 and should sum to ~1. Drives assessment-aware ROI & risk.
+export interface AssessmentWeights {
+  midterm: number;
+  final: number;
+  assignment: number;
+  lab: number;
+  project: number;
+}
+
+export const DEFAULT_ASSESSMENT_WEIGHTS: AssessmentWeights = {
+  midterm: 0.2,
+  final: 0.5,
+  assignment: 0.15,
+  lab: 0.0,
+  project: 0.15,
+};
+
 export interface SubjectMeta {
   id: string;
   name: string;
@@ -36,6 +54,9 @@ export interface SubjectMeta {
   baselineMastery: number; // snapshot for trend calc
   examWeight: number; // 0–1: importance of upcoming exam
   strategicValue: number; // 0–100: long-term value within the program
+  // Academic Weighting Model
+  credits: number; // credit hours (e.g. 4-credit subject outranks a 2-credit one)
+  assessmentWeights: AssessmentWeights; // grading scheme composition
 }
 
 export interface ConceptCore {
@@ -81,6 +102,14 @@ export interface RoiBreakdown {
   strategicImportance: number;
   learningCost: number;
   currentWeakness: number;
+  // ROI Engine V2 — Academic Return ÷ Estimated Effort.
+  creditWeight: number;       // 0–100 — subject credit hours, normalized
+  assessmentWeight: number;   // 0–100 — grading scheme + exam proximity
+  riskReduction: number;      // 0–100 — risk this concept could shed
+  memoryRecovery: number;     // 0–100 — memory-strength recovery value
+  careerRelevance: number;    // 0–100 — long-term / career importance
+  academicReturn: number;     // 0–100 — composite expected return
+  effort: number;             // 0–100 — composite estimated effort
   total: number;
 }
 
@@ -120,6 +149,7 @@ export interface DerivedConcept extends ConceptCore {
   memory: MemoryProfile;
   // Advanced ROI
   roiBreakdown: RoiBreakdown;
+  roiContributors: string[];     // human-readable "why this ROI is high"
   // Explainability
   explain: { risk: ExplainBlock; roi: ExplainBlock };
 }
@@ -142,6 +172,11 @@ export interface DerivedSubject {
   nextAssessment?: string;
   daysToAssessment?: number;
   examWeight: number;
+  // Academic Weighting Model
+  credits: number;
+  creditWeight: number;        // 0–100 — credits normalized vs program max
+  academicWeight: number;      // 0–100 — composite subject importance
+  heaviestAssessment: { kind: string; weight: number };
   dependencyHealth: number;
   predictedScore: { low: number; high: number };
   readiness: number;
@@ -596,32 +631,93 @@ function deriveMemoryProfile(c: ConceptCore): MemoryProfile {
   };
 }
 
-// Multi-factor ROI breakdown — each factor contributes to total ROI.
+// Heaviest single component of a subject's grading scheme.
+function heaviestAssessment(w: AssessmentWeights): { kind: string; weight: number } {
+  const entries: [string, number][] = [
+    ["Final exam", w.final],
+    ["Midterm", w.midterm],
+    ["Assignments", w.assignment],
+    ["Lab", w.lab],
+    ["Project", w.project],
+  ];
+  return entries.reduce(
+    (best, [kind, weight]) => (weight > best.weight ? { kind, weight } : best),
+    { kind: "Final exam", weight: 0 },
+  );
+}
+
+// How close & how heavy the next assessment is, 0–100.
+function examProximityScore(subjMeta: SubjectMeta | undefined): number {
+  if (!subjMeta) return 30;
+  const days = subjMeta.daysToAssessment;
+  const proximity = days === undefined ? 25 : clamp(100 - days * 5);
+  const heaviest = heaviestAssessment(subjMeta.assessmentWeights).weight; // 0–1
+  return Math.round(clamp(proximity * 0.6 + heaviest * 100 * 0.25 + (subjMeta.examWeight ?? 0.3) * 100 * 0.15));
+}
+
+// ROI Engine V2 — Expected Academic Return ÷ Estimated Effort.
+// Return blends credit weight, assessment weight, dependency unlock value,
+// future/strategic value, risk-reduction and memory-recovery value, exam
+// proximity, and career relevance. Effort blends difficulty, study time and
+// recovery complexity. ROI = (return / effort), normalized to 0–100.
 function deriveRoiBreakdown(
   c: ConceptCore,
   subjMeta: SubjectMeta | undefined,
   dependentCount: number,
   prerequisiteHealthGap: number,
+  creditWeight: number,
 ): RoiBreakdown {
   const examWeight = Math.round(clamp((subjMeta?.examWeight ?? 0.3) * 100));
+  const assessmentWeight = examProximityScore(subjMeta);
   // Each unlocked dependent compounds future returns.
   const dependencyUnlocks = Math.round(clamp(dependentCount * 14 + prerequisiteHealthGap * 0.4, 0, 100));
   const futureValue = Math.round(clamp((subjMeta?.strategicValue ?? 60) * 0.7 + c.importance * 3));
   const strategicImportance = Math.round(clamp(c.importance * 9 + (subjMeta?.strategicValue ?? 60) * 0.15));
-  // Lower learning cost = higher ROI contribution. Cost rises with decay & weakness.
-  const learningCost = Math.round(clamp(
-    (100 - c.mastery) * 0.4 + c.decayRate * 80 + Math.min(c.daysSinceReview, 30) * 0.6
-  ));
+  const careerRelevance = Math.round(clamp(subjMeta?.strategicValue ?? 60));
+  // Risk this concept can shed if recovered (room to improve).
+  const riskReduction = Math.round(clamp(baseConceptRisk(c)));
+  const memoryRecovery = Math.round(clamp((100 - c.memoryStrength) * 0.7 + c.importance * 3));
   const currentWeakness = Math.round(clamp((100 - c.mastery) * 0.6 + (100 - c.memoryStrength) * 0.4));
-  const total = Math.round(clamp(
-    examWeight * 0.18 +
-    dependencyUnlocks * 0.16 +
-    futureValue * 0.16 +
-    strategicImportance * 0.18 +
-    currentWeakness * 0.18 -
-    learningCost * 0.10 + 22
+
+  // Expected academic return (0–100) — weights sum to 1.
+  const academicReturn = Math.round(clamp(
+    creditWeight * 0.16 +
+    assessmentWeight * 0.16 +
+    dependencyUnlocks * 0.14 +
+    futureValue * 0.10 +
+    strategicImportance * 0.10 +
+    riskReduction * 0.12 +
+    memoryRecovery * 0.08 +
+    careerRelevance * 0.06 +
+    currentWeakness * 0.08
   ));
-  return { examWeight, dependencyUnlocks, futureValue, strategicImportance, learningCost, currentWeakness, total };
+
+  // Estimated effort (0–100): difficulty + study time + recovery complexity.
+  const difficulty = clamp(c.importance * 5 + c.decayRate * 70);
+  const studyTime = clamp((100 - c.mastery) * 0.8);
+  const recoveryComplexity = clamp((100 - c.memoryStrength) * 0.5 + Math.min(c.daysSinceReview, 30) * 0.8);
+  const effort = Math.round(clamp(difficulty * 0.35 + studyTime * 0.4 + recoveryComplexity * 0.25));
+  const learningCost = effort; // back-compat alias
+
+  // ROI = return / effort, scaled. Floor effort so trivial concepts don't explode.
+  const total = Math.round(clamp((academicReturn / Math.max(28, effort)) * 58));
+
+  return {
+    examWeight,
+    dependencyUnlocks,
+    futureValue,
+    strategicImportance,
+    learningCost,
+    currentWeakness,
+    creditWeight: Math.round(creditWeight),
+    assessmentWeight,
+    riskReduction,
+    memoryRecovery,
+    careerRelevance,
+    academicReturn,
+    effort,
+    total,
+  };
 }
 
 export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">): DerivedConcept[] {
@@ -680,6 +776,13 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
     return d;
   };
 
+  // Credit weighting — normalize each subject's credit hours vs the program max
+  // so a 4-credit subject outranks a 2-credit one (4/4=100 vs 2/4=50).
+  const maxCredits = Math.max(
+    1,
+    ...Object.values(s.subjectsById).map((m) => m.credits || 3),
+  );
+
   // Pass 1: base signals + memory + ROI (independent of propagation).
   const intermediate = raw.map((c) => {
     const prereqIds = PREREQUISITES[c.id] ?? [];
@@ -694,7 +797,8 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
       if (!p) return acc;
       return acc + Math.max(0, 100 - p.mastery) + Math.max(0, 100 - p.memoryStrength);
     }, 0);
-    const roiBreakdown = deriveRoiBreakdown(c, subjMeta, downstreamIds.length, prereqGap);
+    const creditWeight = clamp(((subjMeta?.credits ?? 3) / maxCredits) * 100);
+    const roiBreakdown = deriveRoiBreakdown(c, subjMeta, downstreamIds.length, prereqGap, creditWeight);
     const baseRisk = baseConceptRisk(c);
     return { c, prereqIds, dependentIds, upstreamIds, downstreamIds, dependencyDepth, subjMeta, memory, roiBreakdown, baseRisk, prereqGap };
   });
@@ -775,22 +879,36 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
       expectedImpact: `A focused recovery would drop risk by ~${Math.round(x.propagatedRisk * 0.35)} pts${downstreamCount ? ` and ease pressure on ${downstreamCount} downstream concept${downstreamCount === 1 ? "" : "s"}` : ""}.`,
     };
 
+    // ROI explainability — concrete "why this ROI is high" contributors.
+    const rb = x.roiBreakdown;
+    const roiContributors: string[] = [];
+    if (rb.creditWeight >= 70) roiContributors.push(`${x.subjMeta?.credits ?? 3}-credit subject`);
+    if (x.subjMeta?.daysToAssessment !== undefined && x.subjMeta.daysToAssessment <= 14)
+      roiContributors.push(`Exam in ${x.subjMeta.daysToAssessment} day${x.subjMeta.daysToAssessment === 1 ? "" : "s"}`);
+    else if (rb.assessmentWeight >= 60)
+      roiContributors.push(`Heavily weighted assessment`);
+    if (downstreamCount >= 3) roiContributors.push(`Unlocks ${downstreamCount} concepts`);
+    if (rb.careerRelevance >= 75) roiContributors.push("High strategic value");
+    if (rb.riskReduction >= 50) roiContributors.push("Significant risk reduction");
+    if (rb.memoryRecovery >= 60) roiContributors.push("Strong memory recovery value");
+    if (roiContributors.length === 0) roiContributors.push("Steady marginal return");
+
     const explainRoi: ExplainBlock = {
-      reason: x.roiBreakdown.total >= 80
-        ? `${c.name} compounds: it unlocks ${downstreamCount} downstream concept${downstreamCount === 1 ? "" : "s"} and carries strategic weight in ${c.subjectName}.`
-        : x.roiBreakdown.total >= 60
-        ? `${c.name} returns above average — strategic value and current weakness combine into a strong target.`
-        : `${c.name} returns are moderate — high mastery means marginal gain is limited.`,
+      reason: rb.total >= 80
+        ? `${c.name} = ROI ${rb.total}: ${roiContributors.slice(0, 4).join(" · ")}.`
+        : rb.total >= 60
+        ? `${c.name} returns above average — ${roiContributors.slice(0, 3).join(" · ")}.`
+        : `${c.name} returns are moderate — ${roiContributors.slice(0, 2).join(" · ")}.`,
       factors: [
-        { label: "Exam weight", weight: 0.18, value: `${x.roiBreakdown.examWeight}/100` },
-        { label: "Dependency unlocks", weight: 0.16, value: `${x.roiBreakdown.dependencyUnlocks}/100` },
-        { label: "Future value", weight: 0.16, value: `${x.roiBreakdown.futureValue}/100` },
-        { label: "Strategic importance", weight: 0.18, value: `${x.roiBreakdown.strategicImportance}/100` },
-        { label: "Current weakness", weight: 0.18, value: `${x.roiBreakdown.currentWeakness}/100` },
-        { label: "Learning cost", weight: -0.10, value: `${x.roiBreakdown.learningCost}/100` },
+        { label: "Credit weight", weight: 0.16, value: `${rb.creditWeight}/100` },
+        { label: "Assessment weight", weight: 0.16, value: `${rb.assessmentWeight}/100` },
+        { label: "Dependency unlocks", weight: 0.14, value: `${rb.dependencyUnlocks}/100` },
+        { label: "Risk reduction", weight: 0.12, value: `${rb.riskReduction}/100` },
+        { label: "Strategic / career", weight: 0.16, value: `${rb.careerRelevance}/100` },
+        { label: "Estimated effort", weight: -0.20, value: `${rb.effort}/100` },
       ],
       confidence: Math.round(clamp(75 + (x.subjMeta?.examWeight ?? 0.3) * 20)),
-      expectedImpact: `~+${Math.round(x.roiBreakdown.total / 18)}% subject mastery per focused hour.`,
+      expectedImpact: `Academic return ${rb.academicReturn}/100 ÷ effort ${rb.effort}/100 → ROI ${rb.total}.`,
     };
 
     return {
@@ -817,6 +935,7 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
       isCriticalPath,
       memory: x.memory,
       roiBreakdown: x.roiBreakdown,
+      roiContributors,
       explain: { risk: explainRisk, roi: explainRoi },
     } satisfies DerivedConcept;
   });
@@ -846,6 +965,13 @@ export function deriveSubjects(s: Pick<State, "conceptsById" | "subjectsById">):
     const readiness = Math.round(clamp(mastery * 0.55 + memory * 0.35 + (100 - risk) * 0.10));
     const predictedLow = Math.max(35, readiness - 8);
     const predictedHigh = Math.min(99, readiness + 6);
+    const maxCredits = Math.max(1, ...Object.values(s.subjectsById).map((m) => m.credits || 3));
+    const credits = meta.credits ?? 3;
+    const creditWeight = Math.round(clamp((credits / maxCredits) * 100));
+    const heaviest = heaviestAssessment(meta.assessmentWeights ?? DEFAULT_ASSESSMENT_WEIGHTS);
+    const academicWeight = Math.round(clamp(
+      creditWeight * 0.5 + (meta.examWeight ?? 0.3) * 100 * 0.2 + (meta.strategicValue ?? 60) * 0.3
+    ));
     return {
       id: meta.id,
       name: meta.name,
@@ -858,6 +984,10 @@ export function deriveSubjects(s: Pick<State, "conceptsById" | "subjectsById">):
       nextAssessment: meta.nextAssessment,
       daysToAssessment: meta.daysToAssessment,
       examWeight: meta.examWeight,
+      credits,
+      creditWeight,
+      academicWeight,
+      heaviestAssessment: { kind: heaviest.kind, weight: heaviest.weight },
       dependencyHealth,
       readiness,
       predictedScore: { low: predictedLow, high: predictedHigh },
