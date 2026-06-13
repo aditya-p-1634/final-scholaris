@@ -488,6 +488,10 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       conceptsById: conceptsMap,
       assessments: [entry, ...s.assessments].slice(0, 20),
     }));
+    void persistAssessment(entry);
+    const patches: Record<string, ConceptCore> = {};
+    for (const q of questions) if (conceptsMap[q.conceptId]) patches[q.conceptId] = conceptsMap[q.conceptId];
+    void persistConceptsBatch(patches);
     return entry;
   },
 
