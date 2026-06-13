@@ -164,7 +164,7 @@ function ConceptIntelligence() {
       </Panel>
 
       <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <Panel title="Prerequisites" description="Foundation concepts feeding into this">
+        <Panel title="Prerequisites" description={`${prerequisites.length} direct · ${c.dependencyCount} upstream total · depth ${c.dependencyDepth}${weakPrereqs.length ? ` · ${weakPrereqs.length} weak` : ""}`}>
           {prerequisites.length === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center">No upstream prerequisites tracked.</div>
           ) : (
