@@ -277,29 +277,114 @@ export async function persistAssessment(
   );
 }
 
+// Deterministic UUID from any string — used to map engine mission ids
+// (e.g. "m-recovery-{conceptId}") onto the missions.id uuid column so
+// completion state survives reload.
+function stringToUuid(input: string): string {
+  let h1 = 0x6d2b79f5 ^ input.length;
+  let h2 = 0xa3c59ac3 ^ input.length;
+  for (let i = 0; i < input.length; i++) {
+    h1 = Math.imul(h1 ^ input.charCodeAt(i), 2654435761);
+    h2 = Math.imul(h2 ^ input.charCodeAt(i), 1597334677);
+  }
+  const hex = (n: number) => (n >>> 0).toString(16).padStart(8, "0");
+  const a = hex(h1);
+  const b = hex(Math.imul(h1, 0x85ebca6b) ^ h2);
+  const c = hex(Math.imul(h2, 0xc2b2ae35));
+  const d = hex(h1 ^ Math.imul(h2, 0x27d4eb2d));
+  return `${a}-${b.slice(0, 4)}-4${b.slice(4, 7)}-8${c.slice(0, 3)}-${c.slice(3)}${d}`;
+}
+
 export async function persistMissionCompletion(mission: DerivedMission) {
   const userId = await currentUserId();
   if (!userId) return;
-  await supabase
-    .from("missions")
-    .upsert(
-      {
-        id: mission.id,
-        user_id: userId,
-        subject_id: mission.subjectId || null,
-        concept_id: mission.conceptIds[0] || null,
-        type: mission.type,
-        priority: mission.priority,
-        title: mission.title,
-        reason: mission.reason,
-        roi_score: mission.roiScore,
-        estimated_minutes: mission.estimatedMinutes,
-        completed: true,
-        completed_at: new Date().toISOString(),
-      },
-      { onConflict: "id" },
-    );
+  const id = stringToUuid(`${userId}:${mission.id}`);
+  await supabase.from("missions").upsert(
+    {
+      id,
+      user_id: userId,
+      subject_id: mission.subjectId || null,
+      concept_id: mission.conceptIds[0] || null,
+      type: mission.type,
+      priority: mission.priority,
+      title: mission.title,
+      reason: mission.reason,
+      roi_score: mission.roiScore,
+      estimated_minutes: mission.estimatedMinutes,
+      completed: true,
+      completed_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
 }
+
+// ---------------- Onboarding seed ----------------
+
+export interface OnboardingInput {
+  board: string;
+  program: string;
+  semester: string;
+  subjects: { name: string; code?: string; color?: string; concepts: string[] }[];
+}
+
+const PALETTE = [
+  "oklch(0.72 0.16 250)",
+  "oklch(0.72 0.16 155)",
+  "oklch(0.78 0.16 75)",
+  "oklch(0.65 0.22 320)",
+  "oklch(0.62 0.22 25)",
+  "oklch(0.70 0.10 200)",
+];
+
+export async function seedWorkspace(input: OnboardingInput): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) throw new Error("Not authenticated");
+
+  await supabase.from("profiles").upsert(
+    {
+      id: userId,
+      board: input.board,
+      program: input.program,
+      semester: input.semester,
+      onboarded_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+
+  for (let i = 0; i < input.subjects.length; i++) {
+    const s = input.subjects[i];
+    const { data: subj, error: subjErr } = await supabase
+      .from("subjects")
+      .insert({
+        user_id: userId,
+        name: s.name,
+        code: s.code ?? "",
+        color: s.color ?? PALETTE[i % PALETTE.length],
+        exam_weight: 0.5,
+        strategic_value: 70,
+        hours_this_week: 0,
+        baseline_mastery: 50,
+        rank: i + 1,
+      })
+      .select("id")
+      .single();
+    if (subjErr || !subj) continue;
+
+    const conceptRows = s.concepts.map((name, idx) => ({
+      user_id: userId,
+      subject_id: subj.id,
+      name,
+      importance: 6 + (idx % 4),
+      decay_rate: 0.1,
+      mastery: 40 + ((idx * 7) % 25),
+      memory_strength: 45 + ((idx * 11) % 30),
+    }));
+    if (conceptRows.length) {
+      await supabase.from("concepts").insert(conceptRows);
+    }
+  }
+}
+
 
 export async function persistAdvanceDay(
   conceptUpdates: { id: string; daysSinceReview: number; memoryStrength: number }[],
