@@ -174,7 +174,11 @@ export async function loadWorkspace(userId: string): Promise<WorkspacePayload> {
     prereqs,
     sessions,
     assessments,
-    completedMissionIds: missionRows.map((m) => m.id),
+    completedMissionIds: missionRows.map((m) =>
+      m.type === "assessment"
+        ? `m-assessment-${m.subject_id ?? ""}`
+        : `m-${m.type}-${m.concept_id ?? ""}`,
+    ),
     hasWorkspace: subjects.length > 0,
   };
 }
