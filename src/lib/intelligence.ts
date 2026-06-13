@@ -279,6 +279,8 @@ interface State {
   runSession: (input: { conceptId: string; type?: SessionLogEntry["type"]; minutes?: number }) => SessionLogEntry | null;
   runMission: (missionId: string) => void;
   recordAssessment: (input: { subjectId: string; title: string; actual: number }) => void;
+  // Question-level (concept-aware) assessment intake.
+  recordQuestionAssessment: (input: { subjectId: string; title: string; questions: QuestionOutcome[] }) => AssessmentLogEntry | null;
   advanceDay: (n?: number) => void;
   resetIntelligence: () => void;
 }
