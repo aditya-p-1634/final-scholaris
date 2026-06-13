@@ -1322,6 +1322,8 @@ interface Derived {
   masteryTrend: { day: string; mastery: number; memory: number; roi: number }[];
   sessions: SessionLogEntry[];
   assessments: AssessmentLogEntry[];
+  bottlenecks: BottleneckEntry[];
+  criticalPath: DerivedConcept[];
 }
 
 let cache: { version: number; data: Derived } | null = null;
@@ -1341,6 +1343,8 @@ function getDerived(): Derived {
     masteryTrend: deriveMasteryTrend(state),
     sessions: state.sessions,
     assessments: state.assessments,
+    bottlenecks: deriveBottlenecks(state),
+    criticalPath: deriveCriticalPath(state),
   };
   cache = { version: state.version, data };
   return data;
@@ -1360,6 +1364,7 @@ export function useIntelligenceActions() {
     runSession: useIntelligenceStore.getState().runSession,
     runMission: useIntelligenceStore.getState().runMission,
     recordAssessment: useIntelligenceStore.getState().recordAssessment,
+    recordQuestionAssessment: useIntelligenceStore.getState().recordQuestionAssessment,
     advanceDay: useIntelligenceStore.getState().advanceDay,
     reset: useIntelligenceStore.getState().resetIntelligence,
   };
