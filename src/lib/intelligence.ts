@@ -310,88 +310,17 @@ const SUBJECT_STRATEGIC_VALUE: Record<string, number> = {
   "sub-1": 88, "sub-2": 92, "sub-3": 70, "sub-4": 64, "sub-5": 95, "sub-6": 55,
 };
 
-function seedState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "recordQuestionAssessment" | "advanceDay" | "resetIntelligence"> {
-  const subjectsById: Record<string, SubjectMeta> = {};
-  for (const s of seedSubjects) {
-    const daysTo = s.nextAssessment ? Math.max(0, daysBetween(s.nextAssessment)) : undefined;
-    subjectsById[s.id] = {
-      id: s.id,
-      name: s.name,
-      code: s.code,
-      color: s.color,
-      nextAssessment: s.nextAssessment,
-      daysToAssessment: daysTo,
-      hoursThisWeek: s.hoursThisWeek,
-      baselineMastery: s.mastery - s.trend,
-      // Exams within a week weigh heavily; further-out exams less so.
-      examWeight: daysTo === undefined ? 0.25 : clamp(1 - daysTo / 30, 0.2, 1) as number,
-      strategicValue: SUBJECT_STRATEGIC_VALUE[s.id] ?? 60,
-    };
-  }
-  const conceptsById: Record<string, ConceptCore> = {};
-  for (const c of seedConcepts) {
-    // Seed recall history from existing review count so memory metrics
-    // have something to work with on first load.
-    const successes = Math.max(0, Math.round(c.reviewCount * (c.mastery / 100)));
-    const failures = Math.max(0, c.reviewCount - successes);
-    conceptsById[c.id] = {
-      id: c.id,
-      name: c.name,
-      subjectId: c.subjectId,
-      subjectName: c.subjectName,
-      topic: c.topic,
-      mastery: c.mastery,
-      memoryStrength: c.memoryStrength,
-      importance: c.importance,
-      decayRate: c.decayRate,
-      daysSinceReview: parseLastReviewed(c.lastReviewed),
-      reviewCount: c.reviewCount,
-      successfulRecalls: successes,
-      failedRecalls: failures,
-      assessmentAttempts: 0,
-      assessmentCorrect: 0,
-    };
-  }
-  // Seed a couple of historical sessions and one underperforming assessment
-  // so Diagnostics and Sessions have data on first load.
-  const now = Date.now();
-  const sessions: SessionLogEntry[] = [
-    {
-      id: "seed-s1", conceptId: "c-1", conceptName: "SN2 Reaction Mechanism",
-      subjectId: "sub-1", subjectName: "Organic Chemistry",
-      type: "Review", duration: 16, gain: 4,
-      timestamp: now - 1000 * 60 * 60 * 4, dateLabel: "Today, 08:30",
-    },
-    {
-      id: "seed-s2", conceptId: "c-3", conceptName: "Eigenvalues & Eigenvectors",
-      subjectId: "sub-2", subjectName: "Linear Algebra",
-      type: "Reinforcement", duration: 28, gain: 6,
-      timestamp: now - 1000 * 60 * 60 * 22, dateLabel: "Yesterday, 16:40",
-    },
-    {
-      id: "seed-s3", conceptId: "c-5", conceptName: "Krebs Cycle",
-      subjectId: "sub-3", subjectName: "Cellular Biology",
-      type: "Diagnostic", duration: 18, gain: 8,
-      timestamp: now - 1000 * 60 * 60 * 26, dateLabel: "Yesterday, 21:02",
-    },
-  ];
-  const assessments: AssessmentLogEntry[] = [
-    {
-      id: "seed-a1", subjectId: "sub-4", subjectName: "Macroeconomics",
-      title: "Practice quiz", predicted: 71, actual: 52,
-      timestamp: now - 1000 * 60 * 60 * 50,
-    },
-  ];
+function emptyState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "recordQuestionAssessment" | "advanceDay" | "resetIntelligence" | "hydrate" | "clear"> {
   return {
-    conceptsById,
-    subjectsById,
-    sessions,
-    assessments,
+    conceptsById: {},
+    subjectsById: {},
+    sessions: [],
+    assessments: [],
     completedMissionIds: [],
   };
 }
 
-const initial = seedState();
+const initial = emptyState();
 
 export const useIntelligenceStore = create<State>((set, get) => ({
   version: 0,
