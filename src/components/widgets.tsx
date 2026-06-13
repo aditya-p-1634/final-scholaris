@@ -144,3 +144,92 @@ export function EmptyState({ icon: Icon, title, description, action }: {
     </div>
   );
 }
+
+// ---- Explainability ----
+// Renders any prediction's reasoning transparently: reason, evidence,
+// confidence, contributing factors and projected impact. No black boxes.
+export interface ExplanationData {
+  reason: string;
+  evidence: string[];
+  confidence: number;
+  factors: { label: string; weight: number; value: string }[];
+  projectedImpact: string;
+}
+
+export function ConfidenceChip({ value }: { value: number }) {
+  const tone = value >= 75 ? "text-success" : value >= 50 ? "text-info" : "text-warning";
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-[10px] font-mono", tone)}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" /> {value}% confidence
+    </span>
+  );
+}
+
+export function Explain({ data, defaultOpen = false }: { data: ExplanationData; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="mt-3 rounded-lg border border-border/60 bg-muted/30">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left cursor-pointer"
+      >
+        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+          <Info className="h-3 w-3" /> Why this prediction
+        </span>
+        <span className="flex items-center gap-2">
+          <ConfidenceChip value={data.confidence} />
+          <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")} />
+        </span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-2.5">
+          <p className="text-xs text-muted-foreground leading-relaxed">{data.reason}</p>
+          {data.evidence.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Evidence</div>
+              <ul className="space-y-0.5">
+                {data.evidence.map((e, i) => (
+                  <li key={i} className="text-[11px] text-muted-foreground flex gap-1.5">
+                    <span className="text-primary mt-px">·</span>{e}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {data.factors.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Contributing factors</div>
+              <div className="space-y-1">
+                {data.factors.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground w-32 shrink-0 truncate">{f.label}</span>
+                    <div className="flex-1"><MetricBar value={Math.abs(f.weight) * 100} tone={f.weight < 0 ? "warning" : "default"} /></div>
+                    <span className="text-[11px] font-mono text-muted-foreground w-16 text-right">{f.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="rounded-md bg-primary/5 border border-primary/15 px-2.5 py-1.5">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-primary">Projected impact </span>
+            <span className="text-[11px] text-muted-foreground">{data.projectedImpact}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DeltaPill({ value, invert = false, suffix = "" }: { value: number; invert?: boolean; suffix?: string }) {
+  // invert=true means a negative value is good (e.g. risk going down).
+  const good = invert ? value <= 0 : value >= 0;
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-0.5 text-[11px] font-medium font-mono",
+      value === 0 ? "text-muted-foreground" : good ? "text-success" : "text-destructive",
+    )}>
+      {value > 0 ? <ArrowUpRight className="h-3 w-3" /> : value < 0 ? <ArrowDownRight className="h-3 w-3" /> : null}
+      {value >= 0 ? "+" : ""}{value}{suffix}
+    </span>
+  );
+}
