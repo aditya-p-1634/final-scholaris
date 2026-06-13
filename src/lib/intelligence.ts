@@ -776,6 +776,13 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
     return d;
   };
 
+  // Credit weighting — normalize each subject's credit hours vs the program max
+  // so a 4-credit subject outranks a 2-credit one (4/4=100 vs 2/4=50).
+  const maxCredits = Math.max(
+    1,
+    ...Object.values(s.subjectsById).map((m) => m.credits || 3),
+  );
+
   // Pass 1: base signals + memory + ROI (independent of propagation).
   const intermediate = raw.map((c) => {
     const prereqIds = PREREQUISITES[c.id] ?? [];
@@ -790,7 +797,8 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
       if (!p) return acc;
       return acc + Math.max(0, 100 - p.mastery) + Math.max(0, 100 - p.memoryStrength);
     }, 0);
-    const roiBreakdown = deriveRoiBreakdown(c, subjMeta, downstreamIds.length, prereqGap);
+    const creditWeight = clamp(((subjMeta?.credits ?? 3) / maxCredits) * 100);
+    const roiBreakdown = deriveRoiBreakdown(c, subjMeta, downstreamIds.length, prereqGap, creditWeight);
     const baseRisk = baseConceptRisk(c);
     return { c, prereqIds, dependentIds, upstreamIds, downstreamIds, dependencyDepth, subjMeta, memory, roiBreakdown, baseRisk, prereqGap };
   });
