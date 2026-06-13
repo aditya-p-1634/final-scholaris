@@ -38,9 +38,11 @@ function ConceptIntelligence() {
     return { day: day === 0 ? "Today" : day > 0 ? `+${day}d` : `${day}d`, memory, recovered, isPast };
   });
 
-  const subjectSiblings = concepts.filter((x) => x.subjectId === c.subjectId && x.id !== c.id);
-  const prerequisites = subjectSiblings.filter((x) => x.importance >= c.importance).slice(0, 2);
-  const dependents = subjectSiblings.filter((x) => x.importance <= c.importance).slice(0, 3);
+  const prerequisites = c.prerequisiteIds.map((pid) => concepts.find((x) => x.id === pid)).filter(Boolean) as typeof concepts;
+  const dependents = c.dependentIds.map((did) => concepts.find((x) => x.id === did)).filter(Boolean) as typeof concepts;
+  const upstreamAll = c.upstreamIds.map((id) => concepts.find((x) => x.id === id)).filter(Boolean) as typeof concepts;
+  const downstreamAll = c.downstreamIds.map((id) => concepts.find((x) => x.id === id)).filter(Boolean) as typeof concepts;
+  const weakPrereqs = prerequisites.filter((p) => p.mastery < 60);
 
   const relatedMissions = missions.filter((m) => m.conceptIds.includes(c.id));
   const activeMissions = relatedMissions.filter((m) => !m.completed);
@@ -97,7 +99,8 @@ function ConceptIntelligence() {
             <HealthRow label="Decay status" value={decayStatus} tone={decayStatus === "critical" ? "danger" : decayStatus === "decaying" ? "warning" : "success"} />
             <HealthRow label="Recovery status" value={recoveryStatus.replace("-", " ")} tone={recoveryStatus === "urgent-recovery" ? "danger" : recoveryStatus === "needs-reinforcement" ? "warning" : "success"} />
             <HealthRow label="Decay rate" value={c.decayRate.toFixed(2)} tone={c.decayRate > 0.2 ? "danger" : c.decayRate > 0.12 ? "warning" : "success"} />
-            <HealthRow label="Importance" value={`${c.importance}/10`} tone={c.importance >= 9 ? "danger" : c.importance >= 7 ? "warning" : "success"} />
+            <HealthRow label="Bottleneck" value={c.isBottleneck ? `yes · gates ${c.downstreamCount}` : "no"} tone={c.isBottleneck ? "danger" : "success"} />
+            <HealthRow label="Critical path" value={c.isCriticalPath ? `yes · ${c.criticalPathScore}/100` : "no"} tone={c.isCriticalPath ? "warning" : "success"} />
           </div>
         </Panel>
 
@@ -105,20 +108,22 @@ function ConceptIntelligence() {
           <div className="grid sm:grid-cols-3 gap-4">
             <ProfileBlock
               icon={Crosshair}
-              title="Why this matters"
-              body={`${c.name} carries an importance weight of ${c.importance}/10 within ${c.subjectName}. It anchors the "${c.topic}" thread and influences ${dependents.length} downstream concept${dependents.length === 1 ? "" : "s"}.`}
+              title="Structural position"
+              body={`Depth ${c.dependencyDepth} in the graph · ${c.dependencyCount} upstream / ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"}. Structural importance ${c.structuralImportance}/100.`}
             />
             <ProfileBlock
               icon={TrendingUp}
               title="Strategic importance"
               body={c.roi > 80
-                ? `ROI is exceptional (${c.roi}/100). Investment here yields outsized mastery gains across the topic cluster.`
+                ? `ROI is exceptional (${c.roi}/100). Investment here yields outsized mastery gains${c.downstreamCount ? ` and unlocks ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"}` : ""}.`
                 : `ROI ${c.roi}/100 — moderate. Pair with adjacent concepts for compounded returns.`}
             />
             <ProfileBlock
               icon={ClipboardCheck}
-              title="Exam importance"
-              body={c.importance >= 8
+              title={c.isBottleneck ? "Bottleneck signal" : "Exam importance"}
+              body={c.isBottleneck
+                ? `Weak node gating ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"}. Bottleneck score ${c.bottleneckScore}/100 — clearing this releases compounded risk.`
+                : c.importance >= 8
                 ? `High-yield exam concept. Historically appears in ${Math.round(c.importance * 6)}% of assessments in ${c.subjectName}.`
                 : `Standard exam weight. Expected in periodic problem sets but rarely a focal point.`}
             />
@@ -159,7 +164,7 @@ function ConceptIntelligence() {
       </Panel>
 
       <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <Panel title="Prerequisites" description="Foundation concepts feeding into this">
+        <Panel title="Prerequisites" description={`${prerequisites.length} direct · ${c.dependencyCount} upstream total · depth ${c.dependencyDepth}${weakPrereqs.length ? ` · ${weakPrereqs.length} weak` : ""}`}>
           {prerequisites.length === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center">No upstream prerequisites tracked.</div>
           ) : (
@@ -193,7 +198,7 @@ function ConceptIntelligence() {
           )}
         </Panel>
 
-        <Panel title="Dependents" description="Concepts unlocked by mastering this">
+        <Panel title="Dependents" description={`${dependents.length} direct · ${c.downstreamCount} downstream total · unlock potential ${c.unlockPotential}/100`}>
           {dependents.length === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center">No downstream dependents tracked.</div>
           ) : (
@@ -320,14 +325,27 @@ function ConceptIntelligence() {
             <CoachLine
               tone={c.risk > 60 ? "danger" : c.risk > 40 ? "warning" : "success"}
               label="Why risk is here"
-              text={c.risk > 60
+              text={c.structuralRisk >= 8
+                ? `Risk ${c.risk}/100 — base risk ${c.baseRisk} plus +${c.structuralRisk} structural pressure from ${weakPrereqs.length} weak prerequisite${weakPrereqs.length === 1 ? "" : "s"}${weakPrereqs[0] ? ` (e.g. ${weakPrereqs[0].name})` : ""}. The foundation is softening underneath this node.`
+                : c.risk > 60
                 ? `Risk ${c.risk}/100 — decay rate ${c.decayRate.toFixed(2)} combined with importance ${c.importance}/10 makes this concept a critical liability.`
                 : `Risk ${c.risk}/100 — concept is in a manageable band given current memory and review cadence.`}
             />
             <CoachLine
+              tone={c.isBottleneck ? "danger" : c.downstreamCount > 0 ? "info" : "success"}
+              label="Graph position"
+              text={c.isBottleneck
+                ? `Bottleneck — gates ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"} (${c.dependentIds.length} direct, depth ${c.dependencyDepth}). Recovering this releases compounded risk across ${downstreamAll.slice(0, 2).map((d) => d.name).join(", ") || "the chain"}.`
+                : c.downstreamCount > 0
+                ? `Sits ${c.dependencyDepth} level${c.dependencyDepth === 1 ? "" : "s"} deep. Mastering this unlocks ${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"} (${c.dependentIds.length} direct). Structural importance ${c.structuralImportance}/100.`
+                : `Leaf node in the graph — no downstream dependencies. Treat as a terminal mastery target.`}
+            />
+            <CoachLine
               tone="success"
               label="What should happen next"
-              text={c.mastery < 40
+              text={c.isBottleneck
+                ? `Prioritize recovery. Clearing this bottleneck reduces risk on ${c.downstreamCount} downstream node${c.downstreamCount === 1 ? "" : "s"} by an estimated ${Math.round(c.propagatedRisk * 0.35)} pts each.`
+                : c.mastery < 40
                 ? `Recover immediately. A focused ${Math.max(18, Math.round((100 - c.mastery) / 3))}-minute active-recall sprint will lift mastery into the stable zone and reduce downstream risk.`
                 : c.mastery < 70
                 ? `Reinforce. Schedule one spaced-repetition pass within 48 hours to push this concept into the strong band.`

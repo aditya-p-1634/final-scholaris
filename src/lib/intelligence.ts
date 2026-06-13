@@ -99,13 +99,22 @@ export interface DerivedConcept extends ConceptCore {
   risk: number;
   baseRisk: number;
   propagatedRisk: number;
+  structuralRisk: number;        // 0–100 — risk added purely by graph propagation
   status: ConceptStatus;
   lastReviewed: string;
   // Knowledge graph
   prerequisiteIds: string[];
   dependentIds: string[];
+  upstreamIds: string[];         // transitive prerequisites
+  downstreamIds: string[];       // transitive dependents
+  dependencyDepth: number;       // longest upstream chain length
+  dependencyCount: number;       // transitive prerequisite count
+  downstreamCount: number;       // transitive dependent count
   unlockPotential: number;       // 0–100
   bottleneckScore: number;       // 0–100
+  structuralImportance: number;  // 0–100 — position-in-graph leverage
+  criticalPathScore: number;     // 0–100
+  isBottleneck: boolean;
   isCriticalPath: boolean;
   // Advanced memory
   memory: MemoryProfile;
@@ -627,10 +636,57 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
 
   const byId = new Map(raw.map((c) => [c.id, c]));
 
+  // Transitive closure + depth — cycle-safe via visited stack.
+  const upstreamCache = new Map<string, Set<string>>();
+  const downstreamCache = new Map<string, Set<string>>();
+  const depthCache = new Map<string, number>();
+
+  const collectUpstream = (id: string, stack: Set<string>): Set<string> => {
+    if (upstreamCache.has(id)) return upstreamCache.get(id)!;
+    if (stack.has(id)) return new Set();
+    stack.add(id);
+    const acc = new Set<string>();
+    for (const p of PREREQUISITES[id] ?? []) {
+      if (!byId.has(p)) continue;
+      acc.add(p);
+      for (const x of collectUpstream(p, stack)) acc.add(x);
+    }
+    stack.delete(id);
+    upstreamCache.set(id, acc);
+    return acc;
+  };
+  const collectDownstream = (id: string, stack: Set<string>): Set<string> => {
+    if (downstreamCache.has(id)) return downstreamCache.get(id)!;
+    if (stack.has(id)) return new Set();
+    stack.add(id);
+    const acc = new Set<string>();
+    for (const d of dependents[id] ?? []) {
+      if (!byId.has(d)) continue;
+      acc.add(d);
+      for (const x of collectDownstream(d, stack)) acc.add(x);
+    }
+    stack.delete(id);
+    downstreamCache.set(id, acc);
+    return acc;
+  };
+  const getDepth = (id: string, stack: Set<string>): number => {
+    if (depthCache.has(id)) return depthCache.get(id)!;
+    if (stack.has(id)) return 0;
+    stack.add(id);
+    const prereqs = (PREREQUISITES[id] ?? []).filter((p) => byId.has(p));
+    const d = prereqs.length === 0 ? 0 : 1 + prereqs.reduce((m, p) => Math.max(m, getDepth(p, stack)), 0);
+    stack.delete(id);
+    depthCache.set(id, d);
+    return d;
+  };
+
   // Pass 1: base signals + memory + ROI (independent of propagation).
   const intermediate = raw.map((c) => {
     const prereqIds = PREREQUISITES[c.id] ?? [];
     const dependentIds = dependents[c.id] ?? [];
+    const upstreamIds = Array.from(collectUpstream(c.id, new Set()));
+    const downstreamIds = Array.from(collectDownstream(c.id, new Set()));
+    const dependencyDepth = getDepth(c.id, new Set());
     const subjMeta = s.subjectsById[c.subjectId];
     const memory = deriveMemoryProfile(c);
     const prereqGap = prereqIds.reduce((acc, pid) => {
@@ -638,43 +694,64 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
       if (!p) return acc;
       return acc + Math.max(0, 100 - p.mastery) + Math.max(0, 100 - p.memoryStrength);
     }, 0);
-    const roiBreakdown = deriveRoiBreakdown(c, subjMeta, dependentIds.length, prereqGap);
+    const roiBreakdown = deriveRoiBreakdown(c, subjMeta, downstreamIds.length, prereqGap);
     const baseRisk = baseConceptRisk(c);
-    return { c, prereqIds, dependentIds, subjMeta, memory, roiBreakdown, baseRisk, prereqGap };
+    return { c, prereqIds, dependentIds, upstreamIds, downstreamIds, dependencyDepth, subjMeta, memory, roiBreakdown, baseRisk, prereqGap };
   });
 
-  // Pass 2: propagate risk upward → downward. Weak prerequisites
-  // increase a concept's effective risk because future work on this
-  // concept cannot stabilize without the foundation.
+  // Pass 2: propagate risk along the full upstream chain. Weak transitive
+  // prerequisites contribute attenuated risk so distant foundations still matter.
   const baseRiskMap = new Map(intermediate.map((x) => [x.c.id, x.baseRisk]));
   const propagated = intermediate.map((x) => {
-    const upstreamPressure = x.prereqIds.reduce((acc, pid) => {
+    let upstreamPressure = 0;
+    for (const pid of x.upstreamIds) {
       const pBase = baseRiskMap.get(pid) ?? 0;
       const p = byId.get(pid);
-      if (!p) return acc;
-      // Each weak prereq adds 25% of its own risk + a memory/mastery deficit term.
-      return acc + pBase * 0.25 + (100 - p.mastery) * 0.10 + (100 - p.memoryStrength) * 0.08;
-    }, 0);
+      if (!p) continue;
+      // Attenuate by distance: direct prereqs hit hardest.
+      const direct = x.prereqIds.includes(pid);
+      const weight = direct ? 1.0 : 0.45;
+      upstreamPressure += weight * (pBase * 0.22 + (100 - p.mastery) * 0.08 + (100 - p.memoryStrength) * 0.06);
+    }
     const propagatedRisk = clamp(x.baseRisk + upstreamPressure * 0.55);
-    return { ...x, propagatedRisk };
+    const structuralRisk = Math.round(clamp(propagatedRisk - x.baseRisk));
+    return { ...x, propagatedRisk, structuralRisk };
   });
 
-  // Pass 3: bottleneck & critical path scoring.
-  // Bottleneck = important + weak + many dependents.
-  // Critical path = bottleneck above a threshold OR upstream of a high-risk leaf.
+  // Pass 3: structural importance, bottleneck & critical-path scoring.
   const enriched = propagated.map((x) => {
     const { c } = x;
-    const bottleneckScore = clamp(
-      c.importance * 5 +
-      x.dependentIds.length * 12 +
-      (100 - c.mastery) * 0.25
-    );
-    const unlockPotential = clamp(
-      x.dependentIds.length * 18 +
+    const downstreamCount = x.downstreamIds.length;
+    const dependencyCount = x.upstreamIds.length;
+
+    // Structural importance: where this node sits in the graph.
+    // Many downstream nodes + deep position + high intrinsic importance = high leverage.
+    const structuralImportance = Math.round(clamp(
+      downstreamCount * 14 +
+      x.dependencyDepth * 7 +
+      c.importance * 4
+    ));
+
+    // Bottleneck: gates many things AND is currently weak.
+    const bottleneckScore = Math.round(clamp(
+      downstreamCount * 16 +
+      c.importance * 4 +
+      (100 - c.mastery) * 0.30 +
+      (100 - c.memoryStrength) * 0.10
+    ));
+    const isBottleneck = downstreamCount >= 2 && c.mastery < 70 && bottleneckScore >= 45;
+
+    const unlockPotential = Math.round(clamp(
+      downstreamCount * 14 +
       x.roiBreakdown.dependencyUnlocks * 0.4 +
       c.importance * 3
-    );
-    const isCriticalPath = bottleneckScore >= 55 && x.propagatedRisk >= 45;
+    ));
+
+    // Critical path: structurally important AND under risk pressure.
+    const criticalPathScore = Math.round(clamp(
+      structuralImportance * 0.55 + x.propagatedRisk * 0.45
+    ));
+    const isCriticalPath = criticalPathScore >= 55 && downstreamCount >= 1;
 
     const status = statusFromMastery(c.mastery);
     const lastReviewed = lastReviewedLabel(c.daysSinceReview);
@@ -682,24 +759,25 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
     // Explainability for risk and ROI.
     const explainRisk: ExplainBlock = {
       reason: x.propagatedRisk >= 65
-        ? `${c.name} is high-risk because importance, decay, and ${x.prereqIds.length ? "weak prerequisites" : "memory drop"} are compounding.`
+        ? `${c.name} is high-risk because importance, decay, and ${x.prereqIds.length ? "weak prerequisites" : "memory drop"} are compounding${downstreamCount > 0 ? ` — and it gates ${downstreamCount} downstream concept${downstreamCount === 1 ? "" : "s"}` : ""}.`
         : x.propagatedRisk >= 40
         ? `${c.name} is at moderate risk — base signals are stable but ${x.prereqIds.length ? "upstream concepts are softening" : "review cadence is slipping"}.`
         : `${c.name} risk is contained — review cadence and mastery are aligned.`,
       factors: [
-        { label: "Importance", weight: 0.24, value: `${c.importance}/10` },
-        { label: "Mastery gap", weight: 0.22, value: `${100 - c.mastery}/100` },
-        { label: "Memory gap", weight: 0.18, value: `${100 - c.memoryStrength}/100` },
-        { label: "Days since review", weight: 0.14, value: `${c.daysSinceReview}d` },
-        { label: "Upstream pressure", weight: 0.22, value: `${Math.round(x.propagatedRisk - x.baseRisk)} pts` },
+        { label: "Importance", weight: 0.22, value: `${c.importance}/10` },
+        { label: "Mastery gap", weight: 0.20, value: `${100 - c.mastery}/100` },
+        { label: "Memory gap", weight: 0.16, value: `${100 - c.memoryStrength}/100` },
+        { label: "Days since review", weight: 0.12, value: `${c.daysSinceReview}d` },
+        { label: "Upstream pressure", weight: 0.18, value: `${x.structuralRisk} pts` },
+        { label: "Downstream exposure", weight: 0.12, value: `${downstreamCount} concept${downstreamCount === 1 ? "" : "s"}` },
       ],
       confidence: Math.round(clamp(70 + c.reviewCount * 1.6 + (c.assessmentAttempts > 0 ? 8 : 0))),
-      expectedImpact: `A focused recovery would drop risk by ~${Math.round(x.propagatedRisk * 0.35)} pts.`,
+      expectedImpact: `A focused recovery would drop risk by ~${Math.round(x.propagatedRisk * 0.35)} pts${downstreamCount ? ` and ease pressure on ${downstreamCount} downstream concept${downstreamCount === 1 ? "" : "s"}` : ""}.`,
     };
 
     const explainRoi: ExplainBlock = {
       reason: x.roiBreakdown.total >= 80
-        ? `${c.name} compounds: it unlocks ${x.dependentIds.length} downstream concept${x.dependentIds.length === 1 ? "" : "s"} and carries strategic weight in ${c.subjectName}.`
+        ? `${c.name} compounds: it unlocks ${downstreamCount} downstream concept${downstreamCount === 1 ? "" : "s"} and carries strategic weight in ${c.subjectName}.`
         : x.roiBreakdown.total >= 60
         ? `${c.name} returns above average — strategic value and current weakness combine into a strong target.`
         : `${c.name} returns are moderate — high mastery means marginal gain is limited.`,
@@ -721,12 +799,21 @@ export function deriveConcepts(s: Pick<State, "conceptsById" | "subjectsById">):
       risk: Math.round(x.propagatedRisk),
       baseRisk: Math.round(x.baseRisk),
       propagatedRisk: Math.round(x.propagatedRisk),
+      structuralRisk: x.structuralRisk,
       status,
       lastReviewed,
       prerequisiteIds: x.prereqIds,
       dependentIds: x.dependentIds,
-      unlockPotential: Math.round(unlockPotential),
-      bottleneckScore: Math.round(bottleneckScore),
+      upstreamIds: x.upstreamIds,
+      downstreamIds: x.downstreamIds,
+      dependencyDepth: x.dependencyDepth,
+      dependencyCount,
+      downstreamCount,
+      unlockPotential,
+      bottleneckScore,
+      structuralImportance,
+      criticalPathScore,
+      isBottleneck,
       isCriticalPath,
       memory: x.memory,
       roiBreakdown: x.roiBreakdown,
@@ -795,7 +882,7 @@ export interface BottleneckEntry {
 export function deriveBottlenecks(s: Pick<State, "conceptsById" | "subjectsById">): BottleneckEntry[] {
   const concepts = deriveConcepts(s);
   return concepts
-    .filter((c) => c.dependentIds.length > 0 && c.bottleneckScore >= 45)
+    .filter((c) => c.isBottleneck)
     .sort((a, b) => b.bottleneckScore - a.bottleneckScore)
     .slice(0, 8)
     .map((c) => ({
@@ -803,9 +890,9 @@ export function deriveBottlenecks(s: Pick<State, "conceptsById" | "subjectsById"
       conceptName: c.name,
       subjectName: c.subjectName,
       bottleneckScore: c.bottleneckScore,
-      dependentCount: c.dependentIds.length,
+      dependentCount: c.downstreamCount,
       mastery: c.mastery,
-      reason: `${c.dependentIds.length} downstream concept${c.dependentIds.length === 1 ? "" : "s"} are gated by this node — mastery ${c.mastery}/100.`,
+      reason: `${c.downstreamCount} downstream concept${c.downstreamCount === 1 ? "" : "s"} are gated by this node (depth ${c.dependencyDepth}) — mastery ${c.mastery}/100.`,
     }));
 }
 
@@ -838,17 +925,17 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
     if (c.status === "forgotten" || (c.status === "weak" && c.memoryStrength < 35)) {
       type = "recovery";
       minutes = Math.max(20, Math.round((100 - c.mastery) / 3));
-      priority = c.risk > 80 || (examSoon && c.importance >= 8) ? "critical" : "high";
+      priority = c.risk > 80 || (examSoon && c.importance >= 8) || (c.isBottleneck && c.downstreamCount >= 3) ? "critical" : "high";
       title = `Recover ${c.name}`;
       description = `Mastery ${c.mastery} · memory ${c.memoryStrength}. Decay has crossed the threshold — a focused recovery sprint restores it.`;
-      reason = `${c.status === "forgotten" ? "Forgotten" : "Weak"} concept · risk ${c.risk}${examSoon ? ` · exam in ${subj!.daysToAssessment}d` : ""}`;
+      reason = `${c.status === "forgotten" ? "Forgotten" : "Weak"} concept · risk ${c.risk}${c.isBottleneck ? ` · bottleneck for ${c.downstreamCount} downstream` : ""}${examSoon ? ` · exam in ${subj!.daysToAssessment}d` : ""}`;
     } else if (c.status === "developing" || (c.status === "strong" && c.memoryStrength < 65)) {
       type = "reinforcement";
       minutes = Math.max(20, Math.round((85 - c.mastery) / 2.5));
-      priority = c.risk > 55 ? "high" : "medium";
+      priority = c.risk > 55 || (c.isBottleneck && c.downstreamCount >= 2) ? "high" : "medium";
       title = `Reinforce ${c.name}`;
       description = `Approaching decay threshold. A short reinforcement pass consolidates encoding before memory drops.`;
-      reason = `Memory ${c.memoryStrength} · ROI ${c.roi}`;
+      reason = `Memory ${c.memoryStrength} · ROI ${c.roi}${c.isBottleneck ? ` · gates ${c.downstreamCount} downstream` : ""}`;
     } else if (c.status === "mastered" && c.daysSinceReview >= 7) {
       type = "review";
       minutes = 12;
@@ -862,14 +949,14 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
       priority = "medium";
       title = `Expand from ${c.name}`;
       description = `You've mastered the anchor — extend to adjacent concepts to compound returns.`;
-      reason = `Mastered · high-importance · high-ROI cluster`;
+      reason = `Mastered · high-importance · high-ROI cluster${c.downstreamCount ? ` · ${c.downstreamCount} downstream` : ""}`;
     }
 
     if (!type) continue;
     const id = `m-${type}-${c.id}`;
     const riskReduction = Math.round(
-      type === "recovery" ? c.propagatedRisk * 0.55
-      : type === "reinforcement" ? c.propagatedRisk * 0.30
+      type === "recovery" ? c.propagatedRisk * 0.55 + c.structuralRisk * 0.20
+      : type === "reinforcement" ? c.propagatedRisk * 0.30 + c.structuralRisk * 0.10
       : type === "expansion" ? c.unlockPotential * 0.20
       : c.propagatedRisk * 0.18
     );
@@ -877,23 +964,27 @@ export function deriveMissions(s: Pick<State, "conceptsById" | "subjectsById" | 
       `Mastery ${c.mastery}/100 · memory ${c.memoryStrength}/100 · risk ${c.risk}`,
       `Importance ${c.importance}/10 · last reviewed ${c.lastReviewed}`,
     ];
-    if (c.prerequisiteIds.length) evidence.push(`${c.prerequisiteIds.length} prerequisite${c.prerequisiteIds.length === 1 ? "" : "s"} influencing this concept`);
-    if (c.dependentIds.length) evidence.push(`Unlocks ${c.dependentIds.length} downstream concept${c.dependentIds.length === 1 ? "" : "s"}`);
+    if (c.prerequisiteIds.length) evidence.push(`${c.prerequisiteIds.length} prerequisite${c.prerequisiteIds.length === 1 ? "" : "s"} · ${c.dependencyCount} upstream total (depth ${c.dependencyDepth})`);
+    if (c.downstreamCount) evidence.push(`Unlocks ${c.dependentIds.length} direct / ${c.downstreamCount} total downstream concept${c.downstreamCount === 1 ? "" : "s"}`);
+    if (c.isBottleneck) evidence.push(`Bottleneck · structural importance ${c.structuralImportance}/100 · critical path ${c.criticalPathScore}/100`);
+    if (c.structuralRisk >= 8) evidence.push(`Structural risk +${c.structuralRisk} from weak prerequisites`);
     if (examSoon) evidence.push(`Exam in ${subj!.daysToAssessment}d · readiness ${subj!.readiness}/100`);
     const confidence = Math.round(clamp(
       72 + c.reviewCount * 1.4 + (c.assessmentAttempts > 0 ? 8 : 0) + (examSoon ? 6 : 0)
     ));
     const expectedImpact =
-      type === "recovery" ? `+${Math.round((100 - c.mastery) / 4)}% mastery · -${riskReduction} risk · +${c.memory.recoverySpeed} memory`
+      type === "recovery" ? `+${Math.round((100 - c.mastery) / 4)}% mastery · -${riskReduction} risk${c.downstreamCount ? ` · eases ${c.downstreamCount} downstream` : ""}`
       : type === "reinforcement" ? `+${Math.round(c.memory.recoverySpeed * 0.7)} memory · -${riskReduction} risk`
-      : type === "expansion" ? `Unlocks ${c.dependentIds.length} concept${c.dependentIds.length === 1 ? "" : "s"} · +ROI compounding`
+      : type === "expansion" ? `Unlocks ${c.dependentIds.length} direct · ${c.downstreamCount} total downstream · +ROI compounding`
       : `Preserves mastery streak · -${riskReduction} forgetting probability`;
+    // Structural boost for ROI scoring — bottlenecks rise to the top.
+    const structuralBoost = c.isBottleneck ? c.structuralImportance * 0.20 : c.downstreamCount * 2;
     out.push({
       id, title, description, type, priority,
       subjectId: c.subjectId, subjectName: c.subjectName,
       conceptIds: [c.id],
       estimatedMinutes: minutes,
-      roiScore: Math.round(c.roi + c.importance * 2 - c.daysSinceReview * 0.4),
+      roiScore: Math.round(c.roi + c.importance * 2 - c.daysSinceReview * 0.4 + structuralBoost),
       reason,
       dueBy: priority === "critical" ? "today" : examSoon ? "tomorrow" : undefined,
       completed: completed.has(id),
@@ -1383,13 +1474,37 @@ export function generateCoachReply(question: string, ctx: CoachContext, d: Deriv
   const sub = d.subjects;
   const lookupSubject = sub.find((s) => q.includes(s.name.toLowerCase()) || q.includes(s.code.toLowerCase()));
 
+  // Graph-aware reasoning — bottlenecks, unlocks, structural risk.
+  if (q.includes("bottleneck") || q.includes("blocker") || q.includes("blocking")) {
+    const top = d.bottlenecks[0];
+    if (top) {
+      return `The biggest bottleneck is ${top.conceptName} (${top.subjectName}). It gates ${top.dependentCount} downstream concept${top.dependentCount === 1 ? "" : "s"} at mastery ${top.mastery}/100. Recovering it lifts pressure across the chain.`;
+    }
+    return `No structural bottlenecks right now — no weak concept is gating multiple downstream nodes.`;
+  }
+  if (q.includes("unlock") || q.includes("downstream") || q.includes("dependent")) {
+    const top = [...d.concepts].sort((a, b) => b.downstreamCount * 10 + b.unlockPotential - (a.downstreamCount * 10 + a.unlockPotential))[0];
+    if (top && top.downstreamCount > 0) {
+      return `Recovering ${top.name} unlocks ${top.downstreamCount} downstream concept${top.downstreamCount === 1 ? "" : "s"} (${top.dependentIds.length} direct, depth ${top.dependencyDepth}). Structural importance ${top.structuralImportance}/100.`;
+    }
+    return `No concept currently dominates the dependency graph — every node has limited downstream reach.`;
+  }
+  if (q.includes("critical path") || q.includes("structural") || q.includes("foundation")) {
+    const path = d.criticalPath.slice(0, 3).map((c) => c.name).join(" → ");
+    if (path) return `Critical path right now: ${path}. These nodes carry the highest combined structural importance and propagated risk.`;
+  }
+
   if (q.includes("priorit") || q.includes("first") || q.includes("now") || q.includes("today")) {
     if (ctx.topMission) {
       return `Start with "${ctx.topMission.title}" — ${ctx.topMission.estimatedMinutes} minutes, ROI ${ctx.topMission.roiScore}. Reason: ${ctx.topMission.reason}.`;
     }
   }
   if (q.includes("risk") || q.includes("dang")) {
-    return `Composite risk is ${ctx.compositeRisk}/100. The highest-risk subject is ${ctx.topSubjectRisk?.name} at ${ctx.topSubjectRisk?.risk}/100 with ${ctx.topSubjectRisk?.weakConcepts} weak concepts.`;
+    const struct = [...d.concepts].sort((a, b) => b.structuralRisk - a.structuralRisk)[0];
+    const structLine = struct && struct.structuralRisk >= 6
+      ? ` Structural risk is concentrated on ${struct.name} (+${struct.structuralRisk} from weak prerequisites).`
+      : "";
+    return `Composite risk is ${ctx.compositeRisk}/100. The highest-risk subject is ${ctx.topSubjectRisk?.name} at ${ctx.topSubjectRisk?.risk}/100 with ${ctx.topSubjectRisk?.weakConcepts} weak concepts.${structLine}`;
   }
   if (q.includes("memory") || q.includes("forget")) {
     const forgotten = d.concepts.filter((c) => c.memoryStrength < 35);
@@ -1401,16 +1516,21 @@ export function generateCoachReply(question: string, ctx: CoachContext, d: Deriv
   }
   if (q.includes("roi") || q.includes("impact") || q.includes("efficient")) {
     const top = [...d.concepts].sort((a, b) => b.roi - a.roi)[0];
-    return `Your highest-ROI concept right now is ${top.name} (${top.roi}/100) in ${top.subjectName}. A focused session there yields the largest mastery gain per minute.`;
+    const unlocks = top.downstreamCount ? ` It also unlocks ${top.downstreamCount} downstream concept${top.downstreamCount === 1 ? "" : "s"}.` : "";
+    return `Your highest-ROI concept right now is ${top.name} (${top.roi}/100) in ${top.subjectName}. A focused session there yields the largest mastery gain per minute.${unlocks}`;
   }
   if (q.includes("exam") || q.includes("assessment") || q.includes("test")) {
     const next = sub.filter((s) => s.daysToAssessment !== undefined).sort((a, b) => (a.daysToAssessment! - b.daysToAssessment!))[0];
     if (next) {
-      return `Next assessment: ${next.name} in ${next.daysToAssessment} days. Current readiness ${computeSubjectReadiness(useIntelligenceStore.getState(), next.id)}/100. Projected score band ${Math.max(40, 100 - next.risk - 6)}–${Math.max(50, 100 - next.risk + 4)}%.`;
+      const blockers = d.concepts.filter((c) => c.subjectId === next.id && c.isBottleneck).slice(0, 2).map((c) => c.name);
+      const blockerLine = blockers.length ? ` Top structural blockers: ${blockers.join(", ")}.` : "";
+      return `Next assessment: ${next.name} in ${next.daysToAssessment} days. Current readiness ${computeSubjectReadiness(useIntelligenceStore.getState(), next.id)}/100. Projected score band ${Math.max(40, 100 - next.risk - 6)}–${Math.max(50, 100 - next.risk + 4)}%.${blockerLine}`;
     }
   }
   if (lookupSubject) {
-    return `${lookupSubject.name}: mastery ${lookupSubject.mastery}, memory ${lookupSubject.memory}, ROI ${lookupSubject.roi}, risk ${lookupSubject.risk}. ${lookupSubject.weakConcepts} of ${lookupSubject.concepts} concepts need work. Status: ${lookupSubject.status}.`;
+    const subBottlenecks = d.concepts.filter((c) => c.subjectId === lookupSubject.id && c.isBottleneck).length;
+    const bnLine = subBottlenecks ? ` ${subBottlenecks} structural bottleneck${subBottlenecks === 1 ? "" : "s"} detected.` : "";
+    return `${lookupSubject.name}: mastery ${lookupSubject.mastery}, memory ${lookupSubject.memory}, ROI ${lookupSubject.roi}, risk ${lookupSubject.risk}. ${lookupSubject.weakConcepts} of ${lookupSubject.concepts} concepts need work. Status: ${lookupSubject.status}. Dependency health ${lookupSubject.dependencyHealth}/100.${bnLine}`;
   }
   return `${ctx.strategicOutlook} You have ${ctx.missionQueue} missions queued and ${ctx.criticalConcepts} critical concepts. Ask about a specific subject, exam, or your current risk for a deeper read.`;
 }

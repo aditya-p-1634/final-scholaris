@@ -85,14 +85,22 @@ function SubjectIntelligence() {
     forgotten: subjectConcepts.filter((c) => c.status === "forgotten").length,
   };
 
+  // Graph-derived intelligence: real bottlenecks, structural foundations, critical-path nodes.
   const bottlenecks = [...subjectConcepts]
-    .sort((a, b) => b.importance * (100 - b.mastery) - a.importance * (100 - a.mastery))
+    .filter((c) => c.isBottleneck)
+    .sort((a, b) => b.bottleneckScore - a.bottleneckScore)
     .slice(0, 4);
 
   const foundation = [...subjectConcepts]
-    .filter((c) => c.importance >= 8)
-    .sort((a, b) => b.importance - a.importance)
+    .filter((c) => c.downstreamCount > 0)
+    .sort((a, b) => b.structuralImportance - a.structuralImportance)
     .slice(0, 4);
+
+  const criticalConcepts = [...subjectConcepts]
+    .sort((a, b) => b.criticalPathScore - a.criticalPathScore)
+    .slice(0, 4);
+
+  const structuralWeaknesses = subjectConcepts.filter((c) => c.structuralRisk >= 8).length;
 
   const readiness = computeSubjectReadiness(useIntelligenceStore.getState(), s.id);
   const predictedLow = Math.max(0, readiness - 6);
@@ -263,10 +271,14 @@ function SubjectIntelligence() {
                 : `Trajectory is healthy. Maintain the current cadence — ${s.hoursThisWeek}h/week is producing measurable mastery gains.`}
             />
             <CoachLine
-              tone="info"
+              tone={bottlenecks[0] ? "danger" : "info"}
               text={bottlenecks[0]
-                ? `The bottleneck right now is "${bottlenecks[0].name}". It is importance ${bottlenecks[0].importance}/10 with mastery ${bottlenecks[0].mastery}.`
-                : `No bottleneck detected — every concept is above the developing band.`}
+                ? `Top structural bottleneck: "${bottlenecks[0].name}" gates ${bottlenecks[0].downstreamCount} downstream concept${bottlenecks[0].downstreamCount === 1 ? "" : "s"} at mastery ${bottlenecks[0].mastery}/100. Clearing it lifts pressure across the chain.`
+                : `No structural bottlenecks — no weak concept is gating multiple downstream nodes.`}
+            />
+            <CoachLine
+              tone={s.dependencyHealth < 60 ? "warning" : "success"}
+              text={`Dependency health ${s.dependencyHealth}/100${structuralWeaknesses ? ` · ${structuralWeaknesses} concept${structuralWeaknesses === 1 ? "" : "s"} carrying structural risk from weak prerequisites` : " · foundations are holding"}.`}
             />
             <CoachLine
               tone={s.risk > 60 ? "danger" : "success"}
@@ -283,7 +295,7 @@ function SubjectIntelligence() {
           </div>
         </Panel>
 
-        <Panel title="Dependency overview" description="Foundation and bottleneck concepts">
+        <Panel title="Graph intelligence" description={`Dependency health ${s.dependencyHealth}/100 · ${bottlenecks.length} bottleneck${bottlenecks.length === 1 ? "" : "s"} · ${structuralWeaknesses} structural weakness${structuralWeaknesses === 1 ? "" : "es"}`}>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-[10px] uppercase tracking-wider font-semibold text-success mb-2 flex items-center gap-1.5">
@@ -293,10 +305,10 @@ function SubjectIntelligence() {
                 {foundation.map((c) => (
                   <Link key={c.id} to="/concepts/$id" params={{ id: c.id }} className="block group">
                     <div className="text-sm font-medium group-hover:text-primary transition-colors truncate">{c.name}</div>
-                    <div className="text-[11px] text-muted-foreground">Importance {c.importance}/10 · mastery {c.mastery}</div>
+                    <div className="text-[11px] text-muted-foreground">Unlocks {c.downstreamCount} · structural {c.structuralImportance}/100</div>
                   </Link>
                 ))}
-                {foundation.length === 0 && <div className="text-xs text-muted-foreground italic">No high-importance concepts tagged.</div>}
+                {foundation.length === 0 && <div className="text-xs text-muted-foreground italic">No structural anchors detected.</div>}
               </div>
             </div>
             <div>
@@ -307,12 +319,28 @@ function SubjectIntelligence() {
                 {bottlenecks.map((c) => (
                   <Link key={c.id} to="/concepts/$id" params={{ id: c.id }} className="block group">
                     <div className="text-sm font-medium group-hover:text-primary transition-colors truncate">{c.name}</div>
-                    <div className="text-[11px] text-muted-foreground">Risk {c.risk} · mastery {c.mastery}</div>
+                    <div className="text-[11px] text-muted-foreground">Gates {c.downstreamCount} · mastery {c.mastery} · risk {c.risk}</div>
+                  </Link>
+                ))}
+                {bottlenecks.length === 0 && <div className="text-xs text-muted-foreground italic">No bottlenecks right now.</div>}
+              </div>
+            </div>
+          </div>
+          {criticalConcepts.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/60">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-warning mb-2 flex items-center gap-1.5">
+                <Layers className="h-3 w-3" /> Most critical concepts
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {criticalConcepts.map((c) => (
+                  <Link key={c.id} to="/concepts/$id" params={{ id: c.id }} className="block group">
+                    <div className="text-sm font-medium group-hover:text-primary transition-colors truncate">{c.name}</div>
+                    <div className="text-[11px] text-muted-foreground">Critical path {c.criticalPathScore}/100 · depth {c.dependencyDepth}</div>
                   </Link>
                 ))}
               </div>
             </div>
-          </div>
+          )}
         </Panel>
       </div>
 
