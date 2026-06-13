@@ -54,6 +54,14 @@ export function buildDevWorkspace(): WorkspacePayload {
       baselineMastery: s.mastery,
       examWeight: 0.5,
       strategicValue: s.roi,
+      // Varied credit hours + grading schemes so the weighting model has signal.
+      credits: [4, 3, 2, 4, 3, 2][i % 6],
+      assessmentWeights:
+        i % 3 === 0
+          ? { midterm: 0.25, final: 0.5, assignment: 0.15, lab: 0.0, project: 0.1 }
+          : i % 3 === 1
+          ? { midterm: 0.2, final: 0.4, assignment: 0.2, lab: 0.2, project: 0.0 }
+          : { midterm: 0.15, final: 0.35, assignment: 0.2, lab: 0.0, project: 0.3 },
     };
   }
 
