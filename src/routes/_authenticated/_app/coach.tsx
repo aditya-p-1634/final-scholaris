@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Sparkles, Send, Brain, Target, TrendingUp, ShieldAlert } from "lucide-react";
-import { PageHeader, Panel } from "@/components/widgets";
-import { useIntelligence, useIntelligenceStore, generateCoachReply } from "@/lib/intelligence";
+import { Sparkles, Send, Brain, Hourglass, TrendingUp, Compass, GitBranch } from "lucide-react";
+import { PageHeader, Panel, Explain } from "@/components/widgets";
+import { useIntelligence } from "@/lib/intelligence";
+import { usePredictive, generateStrategistReply, getCoreState } from "@/lib/predictive";
 
 export const Route = createFileRoute("/_authenticated/_app/coach")({
-  head: () => ({ meta: [{ title: "AI Coach — Scholaris" }] }),
+  head: () => ({ meta: [{ title: "Academic Strategist — Scholaris" }] }),
   component: CoachDashboard,
 });
 
@@ -14,27 +15,27 @@ interface Message { role: "coach" | "user"; text: string }
 
 function CoachDashboard() {
   const derived = useIntelligence();
-  const { coachContext: ctx, missions, incidents, recommendations } = derived;
+  const { coachContext: ctx, incidents, recommendations } = derived;
+  const predictive = usePredictive();
+  const { studentModel, digitalTwin, strategicInsights, missionForecasts } = predictive;
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(() => {
-    const opening = ctx.topMission
-      ? `Your dominant priority right now is "${ctx.topMission.title}" — ${ctx.topMission.reason}. I've placed it at the top of your mission queue.`
-      : `All subjects are stable. Use the time to expand from mastered nodes.`;
-    return [{ role: "coach", text: opening }];
+    const lead = strategicInsightsOpening(strategicInsights, missionForecasts);
+    return [{ role: "coach", text: lead }];
   });
 
   const ask = (q: string) => {
     if (!q.trim()) return;
-    const reply = generateCoachReply(q, ctx, useIntelligenceStore.getState() && derived);
+    const reply = generateStrategistReply(q, getCoreState(), studentModel);
     setMessages((m) => [...m, { role: "user", text: q }, { role: "coach", text: reply }]);
     setInput("");
   };
 
   const suggestions = [
-    { icon: Brain, text: `Why is memory dropping in ${derived.subjects.find((s) => s.status === "at-risk" || s.status === "critical")?.name ?? "my weakest subject"}?` },
-    { icon: Target, text: "What's the highest-impact mission right now?" },
-    { icon: TrendingUp, text: "Where is my ROI highest this week?" },
-    { icon: ShieldAlert, text: "What's my biggest exam risk?" },
+    { icon: Compass, text: "What's my future trajectory?" },
+    { icon: Hourglass, text: "What am I about to forget?" },
+    { icon: TrendingUp, text: "What's my risk forecast?" },
+    { icon: GitBranch, text: "What's my biggest bottleneck?" },
   ];
 
   return (
