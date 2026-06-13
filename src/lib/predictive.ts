@@ -512,7 +512,7 @@ export function deriveForgettingForecast(s: CoreState, model: StudentLearningMod
       importance: f.importance,
       severity: f.predictedForgettingDays <= 4 ? "critical" : f.predictedForgettingDays <= 7 ? "high" : "medium",
       explanation: {
-        reason: `${f.conceptName} is projected to drop below recall threshold in ${f.predictedForgettingDays} day${f.predictedForgettingDays === 1 ? "" : "s"} (${f.date}).`,
+        reason: `${f.conceptName} is projected to drop below recall threshold in ${f.predictedForgettingDays} day${f.predictedForgettingDays === 1 ? "" : "s"} (${f.predictedForgettingDate}).`,
         evidence: [
           `Memory strength ${f.memoryStrength}/100, importance ${f.importance}/10`,
           `Personalised decay ${f.personalDecay}/day (vs population baseline)`,
