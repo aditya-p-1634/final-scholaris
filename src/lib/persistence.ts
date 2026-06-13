@@ -68,7 +68,7 @@ export async function loadWorkspace(userId: string): Promise<WorkspacePayload> {
       supabase.from("assessment_questions").select("*").eq("user_id", userId),
       supabase
         .from("missions")
-        .select("id, completed")
+        .select("type, subject_id, concept_id")
         .eq("user_id", userId)
         .eq("completed", true),
     ]);
