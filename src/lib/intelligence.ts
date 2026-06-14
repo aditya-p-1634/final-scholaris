@@ -331,6 +331,14 @@ interface State {
   recordAssessment: (input: { subjectId: string; title: string; actual: number }) => void;
   recordQuestionAssessment: (input: { subjectId: string; title: string; questions: QuestionOutcome[] }) => AssessmentLogEntry | null;
   advanceDay: (n?: number) => void;
+  // Persisted CRUD
+  addSubject: (meta: Omit<SubjectMeta, "id">) => Promise<string | null>;
+  editSubject: (id: string, patch: Partial<SubjectMeta>) => void;
+  removeSubject: (id: string) => void;
+  addConcept: (meta: Omit<ConceptCore, "id" | "subjectName">) => Promise<string | null>;
+  editConcept: (id: string, patch: Partial<ConceptCore>) => void;
+  removeConcept: (id: string) => void;
+  setConceptPrerequisites: (conceptId: string, prerequisiteIds: string[]) => void;
   resetIntelligence: () => void;
   hydrate: (payload: WorkspacePayload) => void;
   clear: () => void;
