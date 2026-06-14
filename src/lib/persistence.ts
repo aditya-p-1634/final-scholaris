@@ -284,7 +284,12 @@ export async function createSubject(meta: Omit<SubjectMeta, "id"> & { rank?: num
 export async function updateSubject(subjectId: string, patch: Partial<SubjectMeta>): Promise<void> {
   const userId = await currentUserId();
   if (!userId) return;
-  const row: Record<string, unknown> = {};
+  const row: {
+    name?: string; code?: string; color?: string; exam_weight?: number;
+    strategic_value?: number; hours_this_week?: number; baseline_mastery?: number;
+    next_assessment?: string | null; credits?: number; midterm_weight?: number;
+    final_weight?: number; assignment_weight?: number; lab_weight?: number; project_weight?: number;
+  } = {};
   if (patch.name !== undefined) row.name = patch.name;
   if (patch.code !== undefined) row.code = patch.code;
   if (patch.color !== undefined) row.color = patch.color;
