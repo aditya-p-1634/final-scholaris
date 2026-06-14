@@ -363,7 +363,8 @@ const SUBJECT_STRATEGIC_VALUE: Record<string, number> = {
   "sub-1": 88, "sub-2": 92, "sub-3": 70, "sub-4": 64, "sub-5": 95, "sub-6": 55,
 };
 
-function emptyState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "recordQuestionAssessment" | "advanceDay" | "resetIntelligence" | "hydrate" | "clear"> {
+type StateData = Pick<State, "conceptsById" | "subjectsById" | "sessions" | "assessments" | "completedMissionIds">;
+function emptyState(): StateData {
   return {
     conceptsById: {},
     subjectsById: {},
