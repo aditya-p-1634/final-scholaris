@@ -445,45 +445,63 @@ export type Database = {
       }
       subjects: {
         Row: {
+          assignment_weight: number
           baseline_mastery: number
           code: string | null
           color: string
           created_at: string
+          credits: number
           exam_weight: number
+          final_weight: number
           hours_this_week: number
           id: string
+          lab_weight: number
+          midterm_weight: number
           name: string
           next_assessment: string | null
+          project_weight: number
           rank: number
           strategic_value: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          assignment_weight?: number
           baseline_mastery?: number
           code?: string | null
           color?: string
           created_at?: string
+          credits?: number
           exam_weight?: number
+          final_weight?: number
           hours_this_week?: number
           id?: string
+          lab_weight?: number
+          midterm_weight?: number
           name: string
           next_assessment?: string | null
+          project_weight?: number
           rank?: number
           strategic_value?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          assignment_weight?: number
           baseline_mastery?: number
           code?: string | null
           color?: string
           created_at?: string
+          credits?: number
           exam_weight?: number
+          final_weight?: number
           hours_this_week?: number
           id?: string
+          lab_weight?: number
+          midterm_weight?: number
           name?: string
           next_assessment?: string | null
+          project_weight?: number
           rank?: number
           strategic_value?: number
           updated_at?: string
