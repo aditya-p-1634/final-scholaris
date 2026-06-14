@@ -4,10 +4,12 @@ import { Atom, Swords, Target, LayoutDashboard, Brain, TrendingUp, ShieldAlert, 
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
-import { subjects, concepts, missions } from "@/lib/mock-data";
+import { useIntelligence } from "@/lib/intelligence";
 
 export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const navigate = useNavigate();
+  // Read from the live persisted workspace — never demo data.
+  const { subjects, concepts, missions } = useIntelligence();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
