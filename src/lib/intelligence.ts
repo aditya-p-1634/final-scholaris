@@ -20,6 +20,12 @@ import {
   persistConceptsBatch,
   persistMissionCompletion,
   persistAdvanceDay,
+  createSubject,
+  updateSubject,
+  deleteSubject,
+  createConcept,
+  deleteConcept,
+  persistPrerequisites,
   type WorkspacePayload,
 } from "./persistence";
 
@@ -331,6 +337,14 @@ interface State {
   recordAssessment: (input: { subjectId: string; title: string; actual: number }) => void;
   recordQuestionAssessment: (input: { subjectId: string; title: string; questions: QuestionOutcome[] }) => AssessmentLogEntry | null;
   advanceDay: (n?: number) => void;
+  // Persisted CRUD
+  addSubject: (meta: Omit<SubjectMeta, "id">) => Promise<string | null>;
+  editSubject: (id: string, patch: Partial<SubjectMeta>) => void;
+  removeSubject: (id: string) => void;
+  addConcept: (meta: Omit<ConceptCore, "id" | "subjectName">) => Promise<string | null>;
+  editConcept: (id: string, patch: Partial<ConceptCore>) => void;
+  removeConcept: (id: string) => void;
+  setConceptPrerequisites: (conceptId: string, prerequisiteIds: string[]) => void;
   resetIntelligence: () => void;
   hydrate: (payload: WorkspacePayload) => void;
   clear: () => void;
@@ -355,7 +369,8 @@ const SUBJECT_STRATEGIC_VALUE: Record<string, number> = {
   "sub-1": 88, "sub-2": 92, "sub-3": 70, "sub-4": 64, "sub-5": 95, "sub-6": 55,
 };
 
-function emptyState(): Omit<State, "version" | "runSession" | "runMission" | "recordAssessment" | "recordQuestionAssessment" | "advanceDay" | "resetIntelligence" | "hydrate" | "clear"> {
+type StateData = Pick<State, "conceptsById" | "subjectsById" | "sessions" | "assessments" | "completedMissionIds">;
+function emptyState(): StateData {
   return {
     conceptsById: {},
     subjectsById: {},
@@ -539,7 +554,99 @@ export const useIntelligenceStore = create<State>((set, get) => ({
     return entry;
   },
 
+  addSubject: async (meta) => {
+    const id = await createSubject(meta);
+    if (!id) return null;
+    set((s) => ({
+      version: s.version + 1,
+      subjectsById: { ...s.subjectsById, [id]: { ...meta, id } },
+    }));
+    return id;
+  },
+
+  editSubject: (id, patch) => {
+    const existing = get().subjectsById[id];
+    if (!existing) return;
+    const updated: SubjectMeta = { ...existing, ...patch };
+    set((s) => ({
+      version: s.version + 1,
+      subjectsById: { ...s.subjectsById, [id]: updated },
+    }));
+    void updateSubject(id, patch);
+  },
+
+  removeSubject: (id) => {
+    const concepts = { ...get().conceptsById };
+    const removedConceptIds = new Set<string>();
+    for (const c of Object.values(concepts)) {
+      if (c.subjectId === id) {
+        removedConceptIds.add(c.id);
+        delete concepts[c.id];
+      }
+    }
+    const subjects = { ...get().subjectsById };
+    delete subjects[id];
+    // Drop prerequisite edges that point at removed concepts.
+    const nextPrereqs: Record<string, string[]> = {};
+    for (const [cid, deps] of Object.entries(PREREQUISITES)) {
+      if (removedConceptIds.has(cid)) continue;
+      nextPrereqs[cid] = deps.filter((d) => !removedConceptIds.has(d));
+    }
+    setPrerequisites(nextPrereqs);
+    set((s) => ({
+      version: s.version + 1,
+      subjectsById: subjects,
+      conceptsById: concepts,
+      sessions: s.sessions.filter((x) => x.subjectId !== id),
+      assessments: s.assessments.filter((x) => x.subjectId !== id),
+    }));
+    void deleteSubject(id);
+  },
+
+  addConcept: async (meta) => {
+    const subjectName = get().subjectsById[meta.subjectId]?.name ?? "";
+    const id = await createConcept(meta);
+    if (!id) return null;
+    setPrerequisites({ ...PREREQUISITES, [id]: [] });
+    set((s) => ({
+      version: s.version + 1,
+      conceptsById: { ...s.conceptsById, [id]: { ...meta, id, subjectName } },
+    }));
+    return id;
+  },
+
+  editConcept: (id, patch) => {
+    const existing = get().conceptsById[id];
+    if (!existing) return;
+    const updated: ConceptCore = { ...existing, ...patch };
+    set((s) => ({
+      version: s.version + 1,
+      conceptsById: { ...s.conceptsById, [id]: updated },
+    }));
+    void persistConceptPatch(id, patch);
+  },
+
+  removeConcept: (id) => {
+    const concepts = { ...get().conceptsById };
+    delete concepts[id];
+    const nextPrereqs: Record<string, string[]> = {};
+    for (const [cid, deps] of Object.entries(PREREQUISITES)) {
+      if (cid === id) continue;
+      nextPrereqs[cid] = deps.filter((d) => d !== id);
+    }
+    setPrerequisites(nextPrereqs);
+    set((s) => ({ version: s.version + 1, conceptsById: concepts }));
+    void deleteConcept(id);
+  },
+
+  setConceptPrerequisites: (conceptId, prerequisiteIds) => {
+    setPrerequisites({ ...PREREQUISITES, [conceptId]: prerequisiteIds });
+    set((s) => ({ version: s.version + 1 }));
+    void persistPrerequisites(conceptId, prerequisiteIds);
+  },
+
   resetIntelligence: () => set(() => ({ version: 0, ...emptyState() })),
+
 
   hydrate: (payload) => {
     setPrerequisites(payload.prereqs);
@@ -1634,6 +1741,13 @@ export function useIntelligenceActions() {
     recordAssessment: useIntelligenceStore.getState().recordAssessment,
     recordQuestionAssessment: useIntelligenceStore.getState().recordQuestionAssessment,
     advanceDay: useIntelligenceStore.getState().advanceDay,
+    addSubject: useIntelligenceStore.getState().addSubject,
+    editSubject: useIntelligenceStore.getState().editSubject,
+    removeSubject: useIntelligenceStore.getState().removeSubject,
+    addConcept: useIntelligenceStore.getState().addConcept,
+    editConcept: useIntelligenceStore.getState().editConcept,
+    removeConcept: useIntelligenceStore.getState().removeConcept,
+    setConceptPrerequisites: useIntelligenceStore.getState().setConceptPrerequisites,
     reset: useIntelligenceStore.getState().resetIntelligence,
     hydrate: useIntelligenceStore.getState().hydrate,
     clear: useIntelligenceStore.getState().clear,

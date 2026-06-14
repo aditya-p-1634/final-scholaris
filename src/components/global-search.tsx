@@ -4,10 +4,12 @@ import { Atom, Swords, Target, LayoutDashboard, Brain, TrendingUp, ShieldAlert, 
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
-import { subjects, concepts, missions } from "@/lib/mock-data";
+import { useIntelligence } from "@/lib/intelligence";
 
 export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const navigate = useNavigate();
+  // Read from the live persisted workspace — never demo data.
+  const { subjects, concepts, missions } = useIntelligence();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -40,36 +42,48 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
           <CommandItem onSelect={() => go("/risk")}><ShieldAlert className="mr-2 h-4 w-4" />Risk Dashboard</CommandItem>
           <CommandItem onSelect={() => go("/coach")}><Sparkles className="mr-2 h-4 w-4" />AI Coach</CommandItem>
         </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Subjects">
-          {subjects.map((s) => (
-            <CommandItem key={s.id} onSelect={() => go(`/subjects/${s.id}`)}>
-              <Swords className="mr-2 h-4 w-4" />
-              <span>{s.name}</span>
-              <span className="ml-auto text-xs text-muted-foreground">{s.code}</span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Concepts">
-          {concepts.slice(0, 8).map((c) => (
-            <CommandItem key={c.id} onSelect={() => go(`/concepts/${c.id}`)}>
-              <Atom className="mr-2 h-4 w-4" />
-              <span>{c.name}</span>
-              <span className="ml-auto text-xs text-muted-foreground">{c.subjectName}</span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Missions">
-          {missions.slice(0, 5).map((m) => (
-            <CommandItem key={m.id} onSelect={() => go("/missions")}>
-              <Target className="mr-2 h-4 w-4" />
-              <span>{m.title}</span>
-              <span className="ml-auto text-xs text-muted-foreground capitalize">{m.priority}</span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
+        {subjects.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Subjects">
+              {subjects.map((s) => (
+                <CommandItem key={s.id} onSelect={() => go(`/subjects/${s.id}`)}>
+                  <Swords className="mr-2 h-4 w-4" />
+                  <span>{s.name}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">{s.code}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+        {concepts.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Concepts">
+              {concepts.slice(0, 8).map((c) => (
+                <CommandItem key={c.id} onSelect={() => go(`/concepts/${c.id}`)}>
+                  <Atom className="mr-2 h-4 w-4" />
+                  <span>{c.name}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">{c.subjectName}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+        {missions.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Missions">
+              {missions.slice(0, 5).map((m) => (
+                <CommandItem key={m.id} onSelect={() => go("/missions")}>
+                  <Target className="mr-2 h-4 w-4" />
+                  <span>{m.title}</span>
+                  <span className="ml-auto text-xs text-muted-foreground capitalize">{m.priority}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   );
