@@ -248,6 +248,134 @@ export async function persistConceptsBatch(patches: Record<string, Partial<Conce
   await Promise.all(Object.entries(patches).map(([id, p]) => persistConceptPatch(id, p)));
 }
 
+// ---------------- Subject / Concept CRUD (fully persisted) ----------------
+
+// CREATE subject — returns the new row id (uuid) so the store can key it.
+export async function createSubject(meta: Omit<SubjectMeta, "id"> & { rank?: number }): Promise<string | null> {
+  const userId = await currentUserId();
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from("subjects")
+    .insert({
+      user_id: userId,
+      name: meta.name,
+      code: meta.code ?? "",
+      color: meta.color ?? PALETTE[0],
+      exam_weight: meta.examWeight ?? 0.5,
+      strategic_value: meta.strategicValue ?? 70,
+      hours_this_week: meta.hoursThisWeek ?? 0,
+      baseline_mastery: meta.baselineMastery ?? 50,
+      next_assessment: meta.nextAssessment ?? null,
+      rank: meta.rank ?? 1,
+      credits: meta.credits ?? 3,
+      midterm_weight: meta.assessmentWeights?.midterm ?? DEFAULT_ASSESSMENT_WEIGHTS.midterm,
+      final_weight: meta.assessmentWeights?.final ?? DEFAULT_ASSESSMENT_WEIGHTS.final,
+      assignment_weight: meta.assessmentWeights?.assignment ?? DEFAULT_ASSESSMENT_WEIGHTS.assignment,
+      lab_weight: meta.assessmentWeights?.lab ?? DEFAULT_ASSESSMENT_WEIGHTS.lab,
+      project_weight: meta.assessmentWeights?.project ?? DEFAULT_ASSESSMENT_WEIGHTS.project,
+    })
+    .select("id")
+    .single();
+  if (error || !data) return null;
+  return data.id;
+}
+
+// UPDATE subject — partial patch of the editable fields.
+export async function updateSubject(subjectId: string, patch: Partial<SubjectMeta>): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
+  const row: Record<string, unknown> = {};
+  if (patch.name !== undefined) row.name = patch.name;
+  if (patch.code !== undefined) row.code = patch.code;
+  if (patch.color !== undefined) row.color = patch.color;
+  if (patch.examWeight !== undefined) row.exam_weight = patch.examWeight;
+  if (patch.strategicValue !== undefined) row.strategic_value = patch.strategicValue;
+  if (patch.hoursThisWeek !== undefined) row.hours_this_week = patch.hoursThisWeek;
+  if (patch.baselineMastery !== undefined) row.baseline_mastery = patch.baselineMastery;
+  if (patch.nextAssessment !== undefined) row.next_assessment = patch.nextAssessment || null;
+  if (patch.credits !== undefined) row.credits = patch.credits;
+  if (patch.assessmentWeights) {
+    row.midterm_weight = patch.assessmentWeights.midterm;
+    row.final_weight = patch.assessmentWeights.final;
+    row.assignment_weight = patch.assessmentWeights.assignment;
+    row.lab_weight = patch.assessmentWeights.lab;
+    row.project_weight = patch.assessmentWeights.project;
+  }
+  if (Object.keys(row).length === 0) return;
+  await supabase.from("subjects").update(row).eq("id", subjectId).eq("user_id", userId);
+}
+
+// DELETE subject — no FK cascade in the schema, so clean up children explicitly.
+export async function deleteSubject(subjectId: string): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
+  const { data: conceptRows } = await supabase
+    .from("concepts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("subject_id", subjectId);
+  const conceptIds = (conceptRows ?? []).map((c) => c.id);
+  if (conceptIds.length) {
+    await supabase.from("concept_prerequisites").delete().eq("user_id", userId).in("concept_id", conceptIds);
+    await supabase.from("concept_prerequisites").delete().eq("user_id", userId).in("prerequisite_id", conceptIds);
+  }
+  await Promise.all([
+    supabase.from("concepts").delete().eq("user_id", userId).eq("subject_id", subjectId),
+    supabase.from("topics").delete().eq("user_id", userId).eq("subject_id", subjectId),
+    supabase.from("sessions").delete().eq("user_id", userId).eq("subject_id", subjectId),
+    supabase.from("assessments").delete().eq("user_id", userId).eq("subject_id", subjectId),
+    supabase.from("missions").delete().eq("user_id", userId).eq("subject_id", subjectId),
+  ]);
+  await supabase.from("subjects").delete().eq("id", subjectId).eq("user_id", userId);
+}
+
+// CREATE concept — returns the new row id.
+export async function createConcept(meta: Omit<ConceptCore, "id" | "subjectName">): Promise<string | null> {
+  const userId = await currentUserId();
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from("concepts")
+    .insert({
+      user_id: userId,
+      subject_id: meta.subjectId,
+      name: meta.name,
+      importance: meta.importance ?? 6,
+      decay_rate: meta.decayRate ?? 0.1,
+      mastery: meta.mastery ?? 40,
+      memory_strength: meta.memoryStrength ?? 45,
+      review_count: meta.reviewCount ?? 0,
+      successful_recalls: meta.successfulRecalls ?? 0,
+      failed_recalls: meta.failedRecalls ?? 0,
+      assessment_attempts: meta.assessmentAttempts ?? 0,
+      assessment_correct: meta.assessmentCorrect ?? 0,
+    })
+    .select("id")
+    .single();
+  if (error || !data) return null;
+  return data.id;
+}
+
+// DELETE concept — also remove any prerequisite edges that reference it.
+export async function deleteConcept(conceptId: string): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
+  await supabase.from("concept_prerequisites").delete().eq("user_id", userId).eq("concept_id", conceptId);
+  await supabase.from("concept_prerequisites").delete().eq("user_id", userId).eq("prerequisite_id", conceptId);
+  await supabase.from("concepts").delete().eq("id", conceptId).eq("user_id", userId);
+}
+
+// SET prerequisites for a concept — full replace of its dependency edges.
+export async function persistPrerequisites(conceptId: string, prerequisiteIds: string[]): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
+  await supabase.from("concept_prerequisites").delete().eq("user_id", userId).eq("concept_id", conceptId);
+  if (prerequisiteIds.length) {
+    await supabase.from("concept_prerequisites").insert(
+      prerequisiteIds.map((prerequisite_id) => ({ user_id: userId, concept_id: conceptId, prerequisite_id })),
+    );
+  }
+}
+
 export async function persistSession(entry: SessionLogEntry) {
   const userId = await currentUserId();
   if (!userId) return;
