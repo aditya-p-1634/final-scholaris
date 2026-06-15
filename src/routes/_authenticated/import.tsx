@@ -198,7 +198,7 @@ function UploadStage({
   files, inputRef, onPick, onFiles, onRemove, onContinue,
 }: {
   files: File[];
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onPick: () => void;
   onFiles: (l: FileList | null) => void;
   onRemove: (i: number) => void;
