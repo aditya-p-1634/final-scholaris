@@ -519,7 +519,7 @@ function UnitBlock({
   const unit = subject.units.find((u) => u.id === unitId);
   if (!unit) return null;
 
-  const mutateUnit = (fn: (u: typeof unit) => typeof unit) =>
+  const mutateUnit = (fn: (u: ImportUnit) => ImportUnit) =>
     mutateSubject((s) => ({ ...s, units: s.units.map((x) => (x.id === unitId ? fn(x) : x)) }));
 
   return (
