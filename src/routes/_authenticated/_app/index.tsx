@@ -746,23 +746,24 @@ function FirstRunCommandCenter() {
           </div>
           <h2 className="text-2xl font-semibold tracking-tight mb-2">Build your academic workspace</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-            Add your board, program and subjects. Scholaris seeds each subject with starter concepts so the
-            intelligence engine has signal from day one — no manual setup of formulas or weights required.
+            Upload your syllabus and Scholaris reads it — detecting subjects, units, topics and concepts, then
+            building your knowledge graph and activating the intelligence engine. No manual setup required.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              to="/onboarding"
+              to="/import"
               className="inline-flex items-center gap-1.5 h-10 px-5 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
             >
-              Set up workspace <ArrowRight className="h-4 w-4" />
+              Upload your syllabus <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/coach"
+              to="/onboarding"
               className="inline-flex items-center gap-1.5 h-10 px-5 rounded-md border border-border bg-background/40 text-sm font-medium hover:bg-accent transition-colors"
             >
-              <Compass className="h-4 w-4" /> Talk to the coach
+              <Compass className="h-4 w-4" /> Set up manually
             </Link>
           </div>
+
         </div>
       </motion.div>
 

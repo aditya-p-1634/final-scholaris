@@ -31,7 +31,7 @@ function AppGate() {
       }
       const profile = await loadProfile(user.id);
       if (!profile?.onboarded_at) {
-        navigate({ to: "/onboarding", replace: true });
+        navigate({ to: "/import", replace: true });
         return;
       }
       const payload = await loadWorkspace(user.id);
