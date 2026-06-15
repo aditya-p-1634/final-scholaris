@@ -13,7 +13,7 @@ import { extractCurriculum } from "@/lib/curriculum.functions";
 import {
   normalizeExtraction, countDraft, subjectsMissingCredits, weightsSum,
   emptySubject, emptyUnit, emptyTopic, emptyConcept,
-  type CurriculumDraft, type ImportSubject, type SubjectProgress, type UnitCoverage,
+  type CurriculumDraft, type ImportSubject, type ImportUnit, type SubjectProgress, type UnitCoverage,
 } from "@/lib/curriculum";
 import { importCurriculum, type ImportSummary } from "@/lib/curriculum-import";
 
