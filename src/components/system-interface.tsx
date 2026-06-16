@@ -248,7 +248,7 @@ function IdentityCard({ identity: id }: { identity: IdentityReport }) {
           <span className="text-muted-foreground">Evolution to Level {id.level + 1}</span>
           <span className="font-mono">{id.levelProgress}%</span>
         </div>
-        <MetricBar value={id.levelProgress} tone="info" />
+        <MetricBar value={id.levelProgress} tone="default" />
         <div className="text-[10px] text-muted-foreground mt-1">{id.pointsToNext} pts to next level</div>
       </div>
       {id.weeklyGrowth.length > 0 && (
