@@ -62,7 +62,10 @@ function CommandCenter() {
         }
       />
 
-      {/* Execution layer — action first, analytics second. */}
+      {/* System Interface — the behavioral execution layer (action first). */}
+      <SystemInterface />
+
+      {/* Execution layer — momentum, victory, streaks. */}
       <ExecutionTop execution={execution} runMission={runMission} />
 
 
