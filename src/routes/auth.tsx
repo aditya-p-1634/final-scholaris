@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { GraduationCap, Loader2, ArrowLeft, Mail } from "lucide-react";
+import { GraduationCap, Loader2, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
@@ -10,11 +10,17 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+type Mode = "login" | "signup" | "forgot";
+
 function AuthPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"email" | "otp">("email");
+  const [mode, setMode] = useState<Mode>("login");
+
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,23 +30,22 @@ function AuthPage() {
     });
   }, [navigate]);
 
-  const sendOtp = async (e: React.FormEvent) => {
+  const resetFields = () => {
+    setPassword("");
+    setConfirmPassword("");
+    setError(null);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: window.location.origin,
-        },
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      toast.success("Code sent. Check your inbox.");
-      setStep("otp");
+      navigate({ to: "/", replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not send code";
+      const msg = err instanceof Error ? err.message : "Could not sign in";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -48,20 +53,74 @@ function AuthPage() {
     }
   };
 
-  const verifyOtp = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: { display_name: username.trim() || email.split("@")[0] },
+        },
+      });
+      if (error) throw error;
+
+      // With email confirmation disabled, a session is returned immediately.
+      if (data.session) {
+        toast.success("Account created. Welcome to Scholaris.");
+        navigate({ to: "/", replace: true });
+        return;
+      }
+
+      // Fallback: attempt immediate sign-in (works when confirmation is off).
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (!signInError) {
+        toast.success("Account created. Welcome to Scholaris.");
+        navigate({ to: "/", replace: true });
+        return;
+      }
+
+      toast.success("Account created. Please sign in.");
+      resetFields();
+      setMode("login");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not create account";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: code.trim(),
-        type: "email",
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
-      navigate({ to: "/", replace: true });
+      toast.success("Password reset link sent. Check your inbox.");
+      setMode("login");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Invalid code";
+      const msg = err instanceof Error ? err.message : "Could not send reset link";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -101,16 +160,16 @@ function AuthPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-card/50 backdrop-blur-xl p-6">
-          {step === "email" ? (
+          {mode === "login" && (
             <>
               <div className="mb-5">
                 <h1 className="text-lg font-semibold tracking-tight">Sign in to Scholaris</h1>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Enter your email and we'll send you a sign-in code.
+                  Enter your email and password to continue.
                 </p>
               </div>
 
-              <form onSubmit={sendOtp} className="space-y-3">
+              <form onSubmit={handleLogin} className="space-y-3">
                 <Field
                   label="Email"
                   type="email"
@@ -119,27 +178,52 @@ function AuthPage() {
                   required
                   placeholder="you@school.edu"
                   autoFocus
+                  autoComplete="email"
                 />
-                {error && (
-                  <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded px-3 py-2">
-                    {error}
-                  </div>
-                )}
+                <Field
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={setPassword}
+                  required
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetFields();
+                      setMode("forgot");
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                {error && <ErrorBox message={error} />}
                 <button
                   type="submit"
-                  disabled={loading || !email}
+                  disabled={loading || !email || !password}
                   className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
                 >
-                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-                  Continue with Email
+                  {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Login
                 </button>
               </form>
 
-              <div className="my-5 flex items-center gap-3">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">or</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  resetFields();
+                  setMode("signup");
+                }}
+                className="w-full h-10 mt-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-accent transition-colors"
+              >
+                Create Account
+              </button>
+
+              <Divider />
 
               <button
                 type="button"
@@ -150,73 +234,146 @@ function AuthPage() {
                 <GoogleIcon /> Continue with Google
               </button>
             </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setStep("email");
-                  setCode("");
-                  setError(null);
-                }}
-                className="inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors mb-4"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back
-              </button>
+          )}
 
+          {mode === "signup" && (
+            <>
               <div className="mb-5">
-                <h1 className="text-lg font-semibold tracking-tight">Enter your code</h1>
+                <h1 className="text-lg font-semibold tracking-tight">Create your account</h1>
                 <p className="text-xs text-muted-foreground mt-1">
-                  We sent a 6-digit code to <span className="text-foreground">{email}</span>.
+                  Set up Scholaris in seconds — no email verification required.
                 </p>
               </div>
 
-              <form onSubmit={verifyOtp} className="space-y-3">
-                <label className="block">
-                  <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-                    Verification Code
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    autoFocus
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="••••••"
-                    className="mt-1 w-full h-12 rounded-md border border-border bg-background/50 px-3 text-center text-lg font-mono tracking-[0.5em] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </label>
-                {error && (
-                  <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded px-3 py-2">
-                    {error}
-                  </div>
-                )}
+              <form onSubmit={handleSignup} className="space-y-3">
+                <Field
+                  label="Username"
+                  type="text"
+                  value={username}
+                  onChange={setUsername}
+                  required
+                  placeholder="your name"
+                  autoFocus
+                  autoComplete="username"
+                />
+                <Field
+                  label="Email"
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  required
+                  placeholder="you@school.edu"
+                  autoComplete="email"
+                />
+                <Field
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={setPassword}
+                  required
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+                <Field
+                  label="Confirm Password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  required
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+                {error && <ErrorBox message={error} />}
                 <button
                   type="submit"
-                  disabled={loading || code.length < 6}
+                  disabled={loading || !email || !password || !confirmPassword}
                   className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
                 >
                   {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Verify & continue
-                </button>
-                <button
-                  type="button"
-                  onClick={sendOtp as unknown as () => void}
-                  disabled={loading}
-                  className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Didn't receive it? Resend code
+                  Create Account
                 </button>
               </form>
+
+              <button
+                type="button"
+                onClick={() => {
+                  resetFields();
+                  setMode("login");
+                }}
+                className="inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors mt-4"
+              >
+                <ArrowLeft className="h-3 w-3" /> Back to login
+              </button>
+            </>
+          )}
+
+          {mode === "forgot" && (
+            <>
+              <div className="mb-5">
+                <h1 className="text-lg font-semibold tracking-tight">Reset your password</h1>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter your email and we'll send you a reset link.
+                </p>
+              </div>
+
+              <form onSubmit={handleForgot} className="space-y-3">
+                <Field
+                  label="Email"
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  required
+                  placeholder="you@school.edu"
+                  autoFocus
+                  autoComplete="email"
+                />
+                {error && <ErrorBox message={error} />}
+                <button
+                  type="submit"
+                  disabled={loading || !email}
+                  className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
+                >
+                  {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Send reset link
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={() => {
+                  resetFields();
+                  setMode("login");
+                }}
+                className="inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors mt-4"
+              >
+                <ArrowLeft className="h-3 w-3" /> Back to login
+              </button>
             </>
           )}
         </div>
 
         <p className="text-center text-[11px] text-muted-foreground mt-5">
-          Scholaris Academic Intelligence — passwordless & secure.
+          Scholaris Academic Intelligence — secure by design.
         </p>
       </div>
+    </div>
+  );
+}
+
+function Divider() {
+  return (
+    <div className="my-5 flex items-center gap-3">
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">or</span>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
+function ErrorBox({ message }: { message: string }) {
+  return (
+    <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded px-3 py-2">
+      {message}
     </div>
   );
 }
@@ -229,6 +386,7 @@ function Field({
   required,
   placeholder,
   autoFocus,
+  autoComplete,
 }: {
   label: string;
   type: string;
@@ -237,6 +395,7 @@ function Field({
   required?: boolean;
   placeholder?: string;
   autoFocus?: boolean;
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
@@ -250,6 +409,7 @@ function Field({
         required={required}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        autoComplete={autoComplete}
         className="mt-1 w-full h-10 rounded-md border border-border bg-background/50 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
       />
     </label>
