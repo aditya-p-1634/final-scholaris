@@ -12,6 +12,7 @@ import { PageHeader, StatCard, Panel, StatusDot, MetricBar, Explain, DeltaPill }
 import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
 import { usePredictive, simulateWhatIf, getCoreState, type WhatIfId, type WhatIfScenario } from "@/lib/predictive";
 import { useExecution, type MomentumReport, type DailyVictory, type StreakReport, type AcademicHealth, type DailyDebrief, type WeeklyReview } from "@/lib/execution";
+import { SystemInterface } from "@/components/system-interface";
 
 export const Route = createFileRoute("/_authenticated/_app/")({
   head: () => ({
