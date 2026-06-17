@@ -21,7 +21,6 @@ import {
   Trophy,
   CircleSlash,
   Zap,
-  Mic,
 } from "lucide-react";
 import {
   Dialog,
