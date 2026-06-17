@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { UniversalCapture } from "@/components/universal-capture";
 import { useIntelligenceActions } from "@/lib/intelligence";
 import { loadProfile, loadWorkspace } from "@/lib/persistence";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +61,7 @@ function AppGate() {
   return (
     <AppShell>
       <Outlet />
+      <UniversalCapture />
     </AppShell>
   );
 }
