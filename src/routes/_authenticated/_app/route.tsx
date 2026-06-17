@@ -61,6 +61,7 @@ function AppGate() {
   return (
     <AppShell>
       <Outlet />
+      <UniversalCapture />
     </AppShell>
   );
 }
