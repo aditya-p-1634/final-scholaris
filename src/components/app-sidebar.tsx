@@ -2,18 +2,24 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Swords, Atom, Target, Brain, TrendingUp,
-  ShieldAlert, Sparkles, ClipboardCheck, GraduationCap, Lightbulb, Stethoscope,
+  ShieldAlert, Sparkles, ClipboardCheck, GraduationCap, Lightbulb, Stethoscope, Timer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const sections = [
   {
-    label: "Intelligence",
+    label: "Execute",
     items: [
       { to: "/", label: "Command Center", icon: LayoutDashboard, exact: true },
+      { to: "/session", label: "Session Mode", icon: Timer },
+      { to: "/missions", label: "Missions", icon: Target },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
       { to: "/battlefield", label: "Subject Battlefield", icon: Swords },
       { to: "/concepts", label: "Concepts", icon: Atom },
-      { to: "/missions", label: "Missions", icon: Target },
     ],
   },
   {

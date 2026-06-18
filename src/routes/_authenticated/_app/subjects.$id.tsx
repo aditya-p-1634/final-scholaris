@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft, Activity, Brain, TrendingUp, ShieldAlert, Calendar, Clock,
-  Sparkles, Target, AlertTriangle, GitBranch, ChevronRight, Layers,
+  Sparkles, Target, AlertTriangle, GitBranch, ChevronRight, Layers, Timer,
 } from "lucide-react";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, PolarRadiusAxis,
@@ -11,6 +11,7 @@ import { PageHeader, Panel, StatCard, StatusDot, MetricBar } from "@/components/
 import {
   useIntelligence, useIntelligenceActions, useIntelligenceStore, computeSubjectReadiness,
 } from "@/lib/intelligence";
+import { useSessionStore, blueprintFromSubject } from "@/lib/session-mode";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_app/subjects/$id")({
@@ -34,6 +35,7 @@ function SubjectIntelligence() {
   const { id } = Route.useLoaderData();
   const { subjects, concepts, missions, recommendations } = useIntelligence();
   const { runMission } = useIntelligenceActions();
+  const launch = useSessionStore((st) => st.launch);
   const navigate = useNavigate();
 
   const s = subjects.find((x) => x.id === id);
@@ -107,10 +109,6 @@ function SubjectIntelligence() {
   const predictedHigh = Math.min(100, readiness + 5);
   const activeMissions = subjectMissions.filter((m) => !m.completed);
 
-  const runTopMission = () => {
-    const top = activeMissions[0];
-    if (top) runMission(top.id);
-  };
 
   return (
     <div>
@@ -128,11 +126,15 @@ function SubjectIntelligence() {
               <StatusDot tone={s.status === "dominant" ? "success" : s.status === "stable" ? "info" : s.status === "at-risk" ? "warning" : "danger"} />
               <span className="font-medium capitalize">{s.status.replace("-", " ")}</span>
             </div>
-            {activeMissions[0] && (
-              <button onClick={runTopMission} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer">
-                <Target className="h-3.5 w-3.5" /> Run top mission
-              </button>
-            )}
+            <button
+              onClick={() => {
+                const bp = blueprintFromSubject(s.id);
+                if (bp) { launch(bp); navigate({ to: "/session" }); }
+              }}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer"
+            >
+              <Timer className="h-3.5 w-3.5" /> Start session
+            </button>
             <button onClick={() => navigate({ to: "/recommendations" })} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-border text-xs font-medium hover:bg-accent cursor-pointer">
               <Sparkles className="h-3.5 w-3.5" /> Recommendations
             </button>

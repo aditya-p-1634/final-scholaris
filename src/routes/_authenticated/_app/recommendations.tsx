@@ -1,13 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Sparkles, ArrowUpRight, Clock, Target, ShieldAlert, TrendingUp,
-  Layers, Compass, Filter, Zap, FileText,
+  Layers, Compass, Filter, Zap, FileText, Timer,
 } from "lucide-react";
 import { PageHeader, Panel, StatCard } from "@/components/widgets";
 import { cn } from "@/lib/utils";
-import { useIntelligence, useIntelligenceActions, type RecommendationCategory } from "@/lib/intelligence";
+import { useIntelligence, type RecommendationCategory } from "@/lib/intelligence";
+import { useSessionStore, blueprintFromMission, blueprintFromConcept } from "@/lib/session-mode";
 
 export const Route = createFileRoute("/_authenticated/_app/recommendations")({
   head: () => ({
@@ -31,8 +32,15 @@ const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 
 function RecommendationsPage() {
   const { recommendations, subjects, concepts, missions } = useIntelligence();
-  const { runMission } = useIntelligenceActions();
+  
+  const launch = useSessionStore((s) => s.launch);
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<RecommendationCategory | "all">("all");
+
+  const startSession = (missionId?: string, conceptId?: string) => {
+    const bp = missionId ? blueprintFromMission(missionId) : conceptId ? blueprintFromConcept(conceptId) : null;
+    if (bp) { launch(bp); navigate({ to: "/session" }); }
+  };
 
   const filtered = recommendations
     .filter((r) => filter === "all" || r.category === filter)
@@ -160,12 +168,12 @@ function RecommendationsPage() {
                       </Link>
                     )}
                   </div>
-                  {linkedMission ? (
+                  {linkedMission || concept ? (
                     <button
-                      onClick={() => runMission(linkedMission.id)}
+                      onClick={() => startSession(linkedMission?.id, concept?.id)}
                       className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
                     >
-                      Act on this <ArrowUpRight className="h-3 w-3" />
+                      <Timer className="h-3 w-3" /> Start session
                     </button>
                   ) : (
                     <Link to="/coach" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">

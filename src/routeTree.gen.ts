@@ -17,6 +17,7 @@ import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticated/_app/route'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/_app/index'
 import { Route as AuthenticatedAppSessionsRouteImport } from './routes/_authenticated/_app/sessions'
+import { Route as AuthenticatedAppSessionRouteImport } from './routes/_authenticated/_app/session'
 import { Route as AuthenticatedAppRoiRouteImport } from './routes/_authenticated/_app/roi'
 import { Route as AuthenticatedAppRiskRouteImport } from './routes/_authenticated/_app/risk'
 import { Route as AuthenticatedAppRecommendationsRouteImport } from './routes/_authenticated/_app/recommendations'
@@ -68,6 +69,11 @@ const AuthenticatedAppSessionsRoute =
     path: '/sessions',
     getParentRoute: () => AuthenticatedAppRouteRoute,
   } as any)
+const AuthenticatedAppSessionRoute = AuthenticatedAppSessionRouteImport.update({
+  id: '/session',
+  path: '/session',
+  getParentRoute: () => AuthenticatedAppRouteRoute,
+} as any)
 const AuthenticatedAppRoiRoute = AuthenticatedAppRoiRouteImport.update({
   id: '/roi',
   path: '/roi',
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/recommendations': typeof AuthenticatedAppRecommendationsRoute
   '/risk': typeof AuthenticatedAppRiskRoute
   '/roi': typeof AuthenticatedAppRoiRoute
+  '/session': typeof AuthenticatedAppSessionRoute
   '/sessions': typeof AuthenticatedAppSessionsRoute
   '/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
   '/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/recommendations': typeof AuthenticatedAppRecommendationsRoute
   '/risk': typeof AuthenticatedAppRiskRoute
   '/roi': typeof AuthenticatedAppRoiRoute
+  '/session': typeof AuthenticatedAppSessionRoute
   '/sessions': typeof AuthenticatedAppSessionsRoute
   '/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
   '/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/recommendations': typeof AuthenticatedAppRecommendationsRoute
   '/_authenticated/_app/risk': typeof AuthenticatedAppRiskRoute
   '/_authenticated/_app/roi': typeof AuthenticatedAppRoiRoute
+  '/_authenticated/_app/session': typeof AuthenticatedAppSessionRoute
   '/_authenticated/_app/sessions': typeof AuthenticatedAppSessionsRoute
   '/_authenticated/_app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/_app/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/recommendations'
     | '/risk'
     | '/roi'
+    | '/session'
     | '/sessions'
     | '/concepts/$id'
     | '/subjects/$id'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/recommendations'
     | '/risk'
     | '/roi'
+    | '/session'
     | '/sessions'
     | '/concepts/$id'
     | '/subjects/$id'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/recommendations'
     | '/_authenticated/_app/risk'
     | '/_authenticated/_app/roi'
+    | '/_authenticated/_app/session'
     | '/_authenticated/_app/sessions'
     | '/_authenticated/_app/'
     | '/_authenticated/_app/concepts/$id'
@@ -315,6 +327,13 @@ declare module '@tanstack/react-router' {
       path: '/sessions'
       fullPath: '/sessions'
       preLoaderRoute: typeof AuthenticatedAppSessionsRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/session': {
+      id: '/_authenticated/_app/session'
+      path: '/session'
+      fullPath: '/session'
+      preLoaderRoute: typeof AuthenticatedAppSessionRouteImport
       parentRoute: typeof AuthenticatedAppRouteRoute
     }
     '/_authenticated/_app/roi': {
@@ -421,6 +440,7 @@ interface AuthenticatedAppRouteRouteChildren {
   AuthenticatedAppRecommendationsRoute: typeof AuthenticatedAppRecommendationsRoute
   AuthenticatedAppRiskRoute: typeof AuthenticatedAppRiskRoute
   AuthenticatedAppRoiRoute: typeof AuthenticatedAppRoiRoute
+  AuthenticatedAppSessionRoute: typeof AuthenticatedAppSessionRoute
   AuthenticatedAppSessionsRoute: typeof AuthenticatedAppSessionsRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppSubjectsIdRoute: typeof AuthenticatedAppSubjectsIdRoute
@@ -436,6 +456,7 @@ const AuthenticatedAppRouteRouteChildren: AuthenticatedAppRouteRouteChildren = {
   AuthenticatedAppRecommendationsRoute: AuthenticatedAppRecommendationsRoute,
   AuthenticatedAppRiskRoute: AuthenticatedAppRiskRoute,
   AuthenticatedAppRoiRoute: AuthenticatedAppRoiRoute,
+  AuthenticatedAppSessionRoute: AuthenticatedAppSessionRoute,
   AuthenticatedAppSessionsRoute: AuthenticatedAppSessionsRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppSubjectsIdRoute: AuthenticatedAppSubjectsIdRoute,

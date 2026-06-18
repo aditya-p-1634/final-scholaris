@@ -1,14 +1,15 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft, Activity, Brain, TrendingUp, ShieldAlert, Sparkles,
   GitBranch, ArrowDown, ArrowUp, Target, AlertTriangle, ChevronRight,
-  History, ClipboardCheck, Crosshair, Play,
+  History, ClipboardCheck, Crosshair, Play, Timer,
 } from "lucide-react";
 import {
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Area, AreaChart, Legend,
 } from "recharts";
 import { PageHeader, Panel, StatCard, StatusDot, MetricBar } from "@/components/widgets";
 import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
+import { useSessionStore, blueprintFromConcept } from "@/lib/session-mode";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_app/concepts/$id")({
@@ -24,6 +25,8 @@ function ConceptIntelligence() {
   const { id } = Route.useLoaderData();
   const { concepts, missions, sessions } = useIntelligence();
   const { runSession } = useIntelligenceActions();
+  const launch = useSessionStore((s) => s.launch);
+  const navigate = useNavigate();
 
   const c = concepts.find((x) => x.id === id);
   if (!c) throw notFound();
@@ -77,9 +80,18 @@ function ConceptIntelligence() {
             </span>
             <button
               onClick={() => runSession({ conceptId: c.id, type: sessionType, minutes: sessionMinutes })}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-border bg-card text-xs font-medium hover:bg-accent cursor-pointer"
+            >
+              <Play className="h-3.5 w-3.5" /> Quick log
+            </button>
+            <button
+              onClick={() => {
+                const bp = blueprintFromConcept(c.id);
+                if (bp) { launch(bp); navigate({ to: "/session" }); }
+              }}
               className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer"
             >
-              <Play className="h-3.5 w-3.5" /> Run {sessionType.toLowerCase()} session
+              <Timer className="h-3.5 w-3.5" /> Start session
             </button>
           </div>
         }
