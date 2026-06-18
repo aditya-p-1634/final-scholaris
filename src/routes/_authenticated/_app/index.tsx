@@ -13,6 +13,7 @@ import { useIntelligence, useIntelligenceActions } from "@/lib/intelligence";
 import { usePredictive, simulateWhatIf, getCoreState, type WhatIfId, type WhatIfScenario } from "@/lib/predictive";
 import { useExecution, type MomentumReport, type DailyVictory, type StreakReport, type AcademicHealth, type DailyDebrief, type WeeklyReview } from "@/lib/execution";
 import { SystemInterface } from "@/components/system-interface";
+import { useSessionStore, blueprintFromMainQuest, blueprintFromMission } from "@/lib/session-mode";
 
 export const Route = createFileRoute("/_authenticated/_app/")({
   head: () => ({
@@ -30,6 +31,7 @@ function CommandCenter() {
   const predictive = usePredictive();
   const execution = useExecution();
   const navigate = useNavigate();
+  const launchSession = useSessionStore((s) => s.launch);
 
   const topMissions = missions.filter((m) => !m.completed).slice(0, 4);
   const criticalAlerts = insights.filter((i) => i.severity === "critical" || i.kind === "alert").slice(0, 3);
@@ -37,10 +39,19 @@ function CommandCenter() {
   const weakest = [...concepts].sort((a, b) => a.mastery - b.mastery).slice(0, 5);
 
   const startTodaysPlan = () => {
+    const bp = blueprintFromMainQuest();
+    if (bp) {
+      launchSession(bp);
+      navigate({ to: "/session" });
+      return;
+    }
     const next = missions.find((m) => !m.completed);
     if (next) {
-      runMission(next.id);
-      navigate({ to: "/missions" });
+      const mbp = blueprintFromMission(next.id);
+      if (mbp) {
+        launchSession(mbp);
+        navigate({ to: "/session" });
+      }
     }
   };
 

@@ -16,7 +16,9 @@ import {
 } from "lucide-react";
 import { Panel, MetricBar, StatusDot } from "@/components/widgets";
 import { useAcademicSystem } from "@/lib/academic-system";
-import { useIntelligenceActions } from "@/lib/intelligence";
+import {
+  useSessionStore, blueprintFromMission, blueprintFromRecovery,
+} from "@/lib/session-mode";
 import type {
   DisciplineReport, RecoveryReport, ProcrastinationReport,
   AccountabilityReport, IdentityReport, MomentumV2Report, MainQuestReport,
@@ -24,15 +26,22 @@ import type {
 
 export function SystemInterface() {
   const system = useAcademicSystem();
-  const { runMission, runSession } = useIntelligenceActions();
+  const launch = useSessionStore((s) => s.launch);
   const navigate = useNavigate();
 
-  const doMission = (id: string) => {
-    runMission(id);
-    navigate({ to: "/missions" });
+  const doMission = (id: string, kind = "Quest") => {
+    const bp = blueprintFromMission(id, kind);
+    if (bp) {
+      launch(bp);
+      navigate({ to: "/session" });
+    }
   };
   const doRecovery = (conceptId: string) => {
-    runSession({ conceptId, type: "Recovery", minutes: 30 });
+    const bp = blueprintFromRecovery(conceptId);
+    if (bp) {
+      launch(bp);
+      navigate({ to: "/session" });
+    }
   };
 
   return (
