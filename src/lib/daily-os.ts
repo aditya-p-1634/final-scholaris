@@ -205,7 +205,7 @@ function buildAlerts(args: {
       severity: "high",
       icon: "risk",
       title: i.title,
-      detail: i.description,
+      detail: i.body,
     });
   }
   const sev = { critical: 3, high: 2, medium: 1, info: 0 } as const;
