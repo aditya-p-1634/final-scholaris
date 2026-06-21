@@ -16,6 +16,7 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated/import'
 import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticated/_app/route'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/_app/index'
+import { Route as AuthenticatedAppTodayRouteImport } from './routes/_authenticated/_app/today'
 import { Route as AuthenticatedAppSessionsRouteImport } from './routes/_authenticated/_app/sessions'
 import { Route as AuthenticatedAppSessionRouteImport } from './routes/_authenticated/_app/session'
 import { Route as AuthenticatedAppRoiRouteImport } from './routes/_authenticated/_app/roi'
@@ -61,6 +62,11 @@ const AuthenticatedAppRouteRoute = AuthenticatedAppRouteRouteImport.update({
 const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedAppRouteRoute,
+} as any)
+const AuthenticatedAppTodayRoute = AuthenticatedAppTodayRouteImport.update({
+  id: '/today',
+  path: '/today',
   getParentRoute: () => AuthenticatedAppRouteRoute,
 } as any)
 const AuthenticatedAppSessionsRoute =
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/roi': typeof AuthenticatedAppRoiRoute
   '/session': typeof AuthenticatedAppSessionRoute
   '/sessions': typeof AuthenticatedAppSessionsRoute
+  '/today': typeof AuthenticatedAppTodayRoute
   '/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
   '/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
 }
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/roi': typeof AuthenticatedAppRoiRoute
   '/session': typeof AuthenticatedAppSessionRoute
   '/sessions': typeof AuthenticatedAppSessionsRoute
+  '/today': typeof AuthenticatedAppTodayRoute
   '/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
   '/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
 }
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/roi': typeof AuthenticatedAppRoiRoute
   '/_authenticated/_app/session': typeof AuthenticatedAppSessionRoute
   '/_authenticated/_app/sessions': typeof AuthenticatedAppSessionsRoute
+  '/_authenticated/_app/today': typeof AuthenticatedAppTodayRoute
   '/_authenticated/_app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/_app/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
   '/_authenticated/_app/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/roi'
     | '/session'
     | '/sessions'
+    | '/today'
     | '/concepts/$id'
     | '/subjects/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/roi'
     | '/session'
     | '/sessions'
+    | '/today'
     | '/concepts/$id'
     | '/subjects/$id'
   id:
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/roi'
     | '/_authenticated/_app/session'
     | '/_authenticated/_app/sessions'
+    | '/_authenticated/_app/today'
     | '/_authenticated/_app/'
     | '/_authenticated/_app/concepts/$id'
     | '/_authenticated/_app/subjects/$id'
@@ -320,6 +332,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/today': {
+      id: '/_authenticated/_app/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof AuthenticatedAppTodayRouteImport
       parentRoute: typeof AuthenticatedAppRouteRoute
     }
     '/_authenticated/_app/sessions': {
@@ -442,6 +461,7 @@ interface AuthenticatedAppRouteRouteChildren {
   AuthenticatedAppRoiRoute: typeof AuthenticatedAppRoiRoute
   AuthenticatedAppSessionRoute: typeof AuthenticatedAppSessionRoute
   AuthenticatedAppSessionsRoute: typeof AuthenticatedAppSessionsRoute
+  AuthenticatedAppTodayRoute: typeof AuthenticatedAppTodayRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppSubjectsIdRoute: typeof AuthenticatedAppSubjectsIdRoute
 }
@@ -458,6 +478,7 @@ const AuthenticatedAppRouteRouteChildren: AuthenticatedAppRouteRouteChildren = {
   AuthenticatedAppRoiRoute: AuthenticatedAppRoiRoute,
   AuthenticatedAppSessionRoute: AuthenticatedAppSessionRoute,
   AuthenticatedAppSessionsRoute: AuthenticatedAppSessionsRoute,
+  AuthenticatedAppTodayRoute: AuthenticatedAppTodayRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppSubjectsIdRoute: AuthenticatedAppSubjectsIdRoute,
 }
@@ -490,13 +511,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
