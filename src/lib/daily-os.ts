@@ -589,7 +589,7 @@ export function useDailyOS(): DailyOSBundle {
       }),
     };
 
-    const d = execution.dailyDebrief;
+    const d = execution.debrief;
     const debrief: EveningDebrief = {
       hadActivity: d.hadActivity,
       performance: {
