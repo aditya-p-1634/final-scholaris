@@ -10,7 +10,7 @@ const sections = [
   {
     label: "Execute",
     items: [
-      { to: "/", label: "Command Center", icon: LayoutDashboard, exact: true },
+      { to: "/", label: "Commander Mode", icon: LayoutDashboard, exact: true },
       { to: "/today", label: "Today · Daily OS", icon: Sunrise },
       { to: "/session", label: "Session Mode", icon: Timer },
       { to: "/missions", label: "Missions", icon: Target },
