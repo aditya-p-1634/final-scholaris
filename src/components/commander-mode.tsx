@@ -19,9 +19,9 @@
 
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  Activity, AlertTriangle, ArrowRight, BookOpen, Brain, Calendar,
-  CheckCircle2, Clock, Compass, Crosshair, Crown, Fingerprint, Flame,
-  Gauge, GitBranch, HeartPulse, Lightbulb, ShieldAlert, Signal,
+  Activity, AlertTriangle, ArrowRight, Brain, Calendar,
+  CheckCircle2, Clock, Compass, Crown, Fingerprint, Flame,
+  GitBranch, HeartPulse, ShieldAlert, Signal,
   Sparkles, Sunrise, Sunset, Target, TrendingDown, TrendingUp, Trophy, Zap,
   type LucideIcon,
 } from "lucide-react";
