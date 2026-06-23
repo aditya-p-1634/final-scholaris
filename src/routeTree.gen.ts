@@ -24,6 +24,7 @@ import { Route as AuthenticatedAppRiskRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAppRecommendationsRouteImport } from './routes/_authenticated/_app/recommendations'
 import { Route as AuthenticatedAppMissionsRouteImport } from './routes/_authenticated/_app/missions'
 import { Route as AuthenticatedAppMemoryRouteImport } from './routes/_authenticated/_app/memory'
+import { Route as AuthenticatedAppMapRouteImport } from './routes/_authenticated/_app/map'
 import { Route as AuthenticatedAppDiagnosticsRouteImport } from './routes/_authenticated/_app/diagnostics'
 import { Route as AuthenticatedAppConceptsRouteImport } from './routes/_authenticated/_app/concepts'
 import { Route as AuthenticatedAppCoachRouteImport } from './routes/_authenticated/_app/coach'
@@ -107,6 +108,11 @@ const AuthenticatedAppMemoryRoute = AuthenticatedAppMemoryRouteImport.update({
   path: '/memory',
   getParentRoute: () => AuthenticatedAppRouteRoute,
 } as any)
+const AuthenticatedAppMapRoute = AuthenticatedAppMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AuthenticatedAppRouteRoute,
+} as any)
 const AuthenticatedAppDiagnosticsRoute =
   AuthenticatedAppDiagnosticsRouteImport.update({
     id: '/diagnostics',
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/coach': typeof AuthenticatedAppCoachRoute
   '/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
   '/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
+  '/map': typeof AuthenticatedAppMapRoute
   '/memory': typeof AuthenticatedAppMemoryRoute
   '/missions': typeof AuthenticatedAppMissionsRoute
   '/recommendations': typeof AuthenticatedAppRecommendationsRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/coach': typeof AuthenticatedAppCoachRoute
   '/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
   '/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
+  '/map': typeof AuthenticatedAppMapRoute
   '/memory': typeof AuthenticatedAppMemoryRoute
   '/missions': typeof AuthenticatedAppMissionsRoute
   '/recommendations': typeof AuthenticatedAppRecommendationsRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/coach': typeof AuthenticatedAppCoachRoute
   '/_authenticated/_app/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
   '/_authenticated/_app/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
+  '/_authenticated/_app/map': typeof AuthenticatedAppMapRoute
   '/_authenticated/_app/memory': typeof AuthenticatedAppMemoryRoute
   '/_authenticated/_app/missions': typeof AuthenticatedAppMissionsRoute
   '/_authenticated/_app/recommendations': typeof AuthenticatedAppRecommendationsRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/coach'
     | '/concepts'
     | '/diagnostics'
+    | '/map'
     | '/memory'
     | '/missions'
     | '/recommendations'
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/coach'
     | '/concepts'
     | '/diagnostics'
+    | '/map'
     | '/memory'
     | '/missions'
     | '/recommendations'
@@ -264,6 +275,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/coach'
     | '/_authenticated/_app/concepts'
     | '/_authenticated/_app/diagnostics'
+    | '/_authenticated/_app/map'
     | '/_authenticated/_app/memory'
     | '/_authenticated/_app/missions'
     | '/_authenticated/_app/recommendations'
@@ -390,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppMemoryRouteImport
       parentRoute: typeof AuthenticatedAppRouteRoute
     }
+    '/_authenticated/_app/map': {
+      id: '/_authenticated/_app/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof AuthenticatedAppMapRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
     '/_authenticated/_app/diagnostics': {
       id: '/_authenticated/_app/diagnostics'
       path: '/diagnostics'
@@ -454,6 +473,7 @@ interface AuthenticatedAppRouteRouteChildren {
   AuthenticatedAppCoachRoute: typeof AuthenticatedAppCoachRoute
   AuthenticatedAppConceptsRoute: typeof AuthenticatedAppConceptsRouteWithChildren
   AuthenticatedAppDiagnosticsRoute: typeof AuthenticatedAppDiagnosticsRoute
+  AuthenticatedAppMapRoute: typeof AuthenticatedAppMapRoute
   AuthenticatedAppMemoryRoute: typeof AuthenticatedAppMemoryRoute
   AuthenticatedAppMissionsRoute: typeof AuthenticatedAppMissionsRoute
   AuthenticatedAppRecommendationsRoute: typeof AuthenticatedAppRecommendationsRoute
@@ -471,6 +491,7 @@ const AuthenticatedAppRouteRouteChildren: AuthenticatedAppRouteRouteChildren = {
   AuthenticatedAppCoachRoute: AuthenticatedAppCoachRoute,
   AuthenticatedAppConceptsRoute: AuthenticatedAppConceptsRouteWithChildren,
   AuthenticatedAppDiagnosticsRoute: AuthenticatedAppDiagnosticsRoute,
+  AuthenticatedAppMapRoute: AuthenticatedAppMapRoute,
   AuthenticatedAppMemoryRoute: AuthenticatedAppMemoryRoute,
   AuthenticatedAppMissionsRoute: AuthenticatedAppMissionsRoute,
   AuthenticatedAppRecommendationsRoute: AuthenticatedAppRecommendationsRoute,
