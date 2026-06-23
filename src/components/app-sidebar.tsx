@@ -19,6 +19,7 @@ const sections = [
   {
     label: "Intelligence",
     items: [
+      { to: "/map", label: "Academic Map", icon: Network },
       { to: "/battlefield", label: "Subject Battlefield", icon: Swords },
       { to: "/concepts", label: "Concepts", icon: Atom },
     ],
