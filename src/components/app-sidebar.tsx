@@ -44,6 +44,7 @@ const sections = [
     items: [
       { to: "/coach", label: "AI Coach", icon: Sparkles },
       { to: "/sessions", label: "Sessions & Assessments", icon: ClipboardCheck },
+      { to: "/data-safety", label: "Data Safety", icon: ShieldCheck },
     ],
   },
 ];
