@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Swords, Atom, Target, Brain, TrendingUp,
-  ShieldAlert, Sparkles, ClipboardCheck, GraduationCap, Lightbulb, Stethoscope, Timer, Sunrise, Network,
+  ShieldAlert, Sparkles, ClipboardCheck, GraduationCap, Lightbulb, Stethoscope, Timer, Sunrise, Network, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,7 @@ const sections = [
     items: [
       { to: "/coach", label: "AI Coach", icon: Sparkles },
       { to: "/sessions", label: "Sessions & Assessments", icon: ClipboardCheck },
+      { to: "/data-safety", label: "Data Safety", icon: ShieldCheck },
     ],
   },
 ];

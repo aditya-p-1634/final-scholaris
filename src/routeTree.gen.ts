@@ -26,6 +26,7 @@ import { Route as AuthenticatedAppMissionsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAppMemoryRouteImport } from './routes/_authenticated/_app/memory'
 import { Route as AuthenticatedAppMapRouteImport } from './routes/_authenticated/_app/map'
 import { Route as AuthenticatedAppDiagnosticsRouteImport } from './routes/_authenticated/_app/diagnostics'
+import { Route as AuthenticatedAppDataSafetyRouteImport } from './routes/_authenticated/_app/data-safety'
 import { Route as AuthenticatedAppConceptsRouteImport } from './routes/_authenticated/_app/concepts'
 import { Route as AuthenticatedAppCoachRouteImport } from './routes/_authenticated/_app/coach'
 import { Route as AuthenticatedAppBattlefieldRouteImport } from './routes/_authenticated/_app/battlefield'
@@ -119,6 +120,12 @@ const AuthenticatedAppDiagnosticsRoute =
     path: '/diagnostics',
     getParentRoute: () => AuthenticatedAppRouteRoute,
   } as any)
+const AuthenticatedAppDataSafetyRoute =
+  AuthenticatedAppDataSafetyRouteImport.update({
+    id: '/data-safety',
+    path: '/data-safety',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
 const AuthenticatedAppConceptsRoute =
   AuthenticatedAppConceptsRouteImport.update({
     id: '/concepts',
@@ -158,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/battlefield': typeof AuthenticatedAppBattlefieldRoute
   '/coach': typeof AuthenticatedAppCoachRoute
   '/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
+  '/data-safety': typeof AuthenticatedAppDataSafetyRoute
   '/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
   '/map': typeof AuthenticatedAppMapRoute
   '/memory': typeof AuthenticatedAppMemoryRoute
@@ -180,6 +188,7 @@ export interface FileRoutesByTo {
   '/battlefield': typeof AuthenticatedAppBattlefieldRoute
   '/coach': typeof AuthenticatedAppCoachRoute
   '/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
+  '/data-safety': typeof AuthenticatedAppDataSafetyRoute
   '/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
   '/map': typeof AuthenticatedAppMapRoute
   '/memory': typeof AuthenticatedAppMemoryRoute
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/battlefield': typeof AuthenticatedAppBattlefieldRoute
   '/_authenticated/_app/coach': typeof AuthenticatedAppCoachRoute
   '/_authenticated/_app/concepts': typeof AuthenticatedAppConceptsRouteWithChildren
+  '/_authenticated/_app/data-safety': typeof AuthenticatedAppDataSafetyRoute
   '/_authenticated/_app/diagnostics': typeof AuthenticatedAppDiagnosticsRoute
   '/_authenticated/_app/map': typeof AuthenticatedAppMapRoute
   '/_authenticated/_app/memory': typeof AuthenticatedAppMemoryRoute
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/battlefield'
     | '/coach'
     | '/concepts'
+    | '/data-safety'
     | '/diagnostics'
     | '/map'
     | '/memory'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/battlefield'
     | '/coach'
     | '/concepts'
+    | '/data-safety'
     | '/diagnostics'
     | '/map'
     | '/memory'
@@ -274,6 +286,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/battlefield'
     | '/_authenticated/_app/coach'
     | '/_authenticated/_app/concepts'
+    | '/_authenticated/_app/data-safety'
     | '/_authenticated/_app/diagnostics'
     | '/_authenticated/_app/map'
     | '/_authenticated/_app/memory'
@@ -416,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppDiagnosticsRouteImport
       parentRoute: typeof AuthenticatedAppRouteRoute
     }
+    '/_authenticated/_app/data-safety': {
+      id: '/_authenticated/_app/data-safety'
+      path: '/data-safety'
+      fullPath: '/data-safety'
+      preLoaderRoute: typeof AuthenticatedAppDataSafetyRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
     '/_authenticated/_app/concepts': {
       id: '/_authenticated/_app/concepts'
       path: '/concepts'
@@ -472,6 +492,7 @@ interface AuthenticatedAppRouteRouteChildren {
   AuthenticatedAppBattlefieldRoute: typeof AuthenticatedAppBattlefieldRoute
   AuthenticatedAppCoachRoute: typeof AuthenticatedAppCoachRoute
   AuthenticatedAppConceptsRoute: typeof AuthenticatedAppConceptsRouteWithChildren
+  AuthenticatedAppDataSafetyRoute: typeof AuthenticatedAppDataSafetyRoute
   AuthenticatedAppDiagnosticsRoute: typeof AuthenticatedAppDiagnosticsRoute
   AuthenticatedAppMapRoute: typeof AuthenticatedAppMapRoute
   AuthenticatedAppMemoryRoute: typeof AuthenticatedAppMemoryRoute
@@ -490,6 +511,7 @@ const AuthenticatedAppRouteRouteChildren: AuthenticatedAppRouteRouteChildren = {
   AuthenticatedAppBattlefieldRoute: AuthenticatedAppBattlefieldRoute,
   AuthenticatedAppCoachRoute: AuthenticatedAppCoachRoute,
   AuthenticatedAppConceptsRoute: AuthenticatedAppConceptsRouteWithChildren,
+  AuthenticatedAppDataSafetyRoute: AuthenticatedAppDataSafetyRoute,
   AuthenticatedAppDiagnosticsRoute: AuthenticatedAppDiagnosticsRoute,
   AuthenticatedAppMapRoute: AuthenticatedAppMapRoute,
   AuthenticatedAppMemoryRoute: AuthenticatedAppMemoryRoute,
