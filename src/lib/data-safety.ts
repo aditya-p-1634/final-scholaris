@@ -161,7 +161,11 @@ export interface BackupRecord {
 
 type BackupListener = () => void;
 const listeners = new Set<BackupListener>();
-function notify() { for (const l of listeners) l(); }
+let cachedSorted: BackupRecord[] | null = null;
+function notify() {
+  cachedSorted = null;
+  for (const l of listeners) l();
+}
 
 function readBackups(): BackupRecord[] {
   if (typeof window === "undefined") return [];
@@ -174,13 +178,16 @@ function readBackups(): BackupRecord[] {
 function writeBackups(list: BackupRecord[]) {
   try {
     localStorage.setItem(BACKUP_KEY, JSON.stringify(list));
-    notify();
   } catch { /* quota */ }
+  notify();
 }
 
 export function listBackups(): BackupRecord[] {
-  return readBackups().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  if (cachedSorted) return cachedSorted;
+  cachedSorted = readBackups().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return cachedSorted;
 }
+
 
 export function createBackup(kind: BackupRecord["kind"] = "manual", note?: string): BackupRecord {
   const snap = buildSnapshot();
