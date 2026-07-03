@@ -1,10 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Swords, Atom, Target, Brain, TrendingUp,
   ShieldAlert, Sparkles, ClipboardCheck, GraduationCap, Lightbulb, Stethoscope, Timer, Sunrise, Network, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useIntelligence } from "@/lib/intelligence";
+import { DEV_MODE, DEV_USER } from "@/lib/dev-mode";
 
 const sections = [
   {
