@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Atom, Swords, Target, LayoutDashboard, Brain, TrendingUp, ShieldAlert, Sparkles } from "lucide-react";
+import { Atom, Swords, Target, LayoutDashboard, Brain, TrendingUp, ShieldAlert, Sparkles, Sunrise, Timer, Network, Lightbulb, Stethoscope, ClipboardCheck, ShieldCheck } from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
@@ -32,15 +32,28 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
       <CommandInput placeholder="Search concepts, subjects, missions, dashboards…" />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Navigate">
-          <CommandItem onSelect={() => go("/")}><LayoutDashboard className="mr-2 h-4 w-4" />Command Center</CommandItem>
+        <CommandGroup heading="Execute">
+          <CommandItem onSelect={() => go("/")}><LayoutDashboard className="mr-2 h-4 w-4" />Commander Mode</CommandItem>
+          <CommandItem onSelect={() => go("/today")}><Sunrise className="mr-2 h-4 w-4" />Today · Daily OS</CommandItem>
+          <CommandItem onSelect={() => go("/session")}><Timer className="mr-2 h-4 w-4" />Session Mode</CommandItem>
+          <CommandItem onSelect={() => go("/missions")}><Target className="mr-2 h-4 w-4" />Missions</CommandItem>
+        </CommandGroup>
+        <CommandSeparator />
+        <CommandGroup heading="Intelligence">
+          <CommandItem onSelect={() => go("/map")}><Network className="mr-2 h-4 w-4" />Academic Map</CommandItem>
           <CommandItem onSelect={() => go("/battlefield")}><Swords className="mr-2 h-4 w-4" />Subject Battlefield</CommandItem>
           <CommandItem onSelect={() => go("/concepts")}><Atom className="mr-2 h-4 w-4" />Concepts</CommandItem>
-          <CommandItem onSelect={() => go("/missions")}><Target className="mr-2 h-4 w-4" />Missions Center</CommandItem>
-          <CommandItem onSelect={() => go("/memory")}><Brain className="mr-2 h-4 w-4" />Memory Dashboard</CommandItem>
-          <CommandItem onSelect={() => go("/roi")}><TrendingUp className="mr-2 h-4 w-4" />ROI Dashboard</CommandItem>
-          <CommandItem onSelect={() => go("/risk")}><ShieldAlert className="mr-2 h-4 w-4" />Risk Dashboard</CommandItem>
+          <CommandItem onSelect={() => go("/memory")}><Brain className="mr-2 h-4 w-4" />Memory</CommandItem>
+          <CommandItem onSelect={() => go("/roi")}><TrendingUp className="mr-2 h-4 w-4" />Knowledge ROI</CommandItem>
+          <CommandItem onSelect={() => go("/risk")}><ShieldAlert className="mr-2 h-4 w-4" />Risk</CommandItem>
+        </CommandGroup>
+        <CommandSeparator />
+        <CommandGroup heading="Workspace">
+          <CommandItem onSelect={() => go("/recommendations")}><Lightbulb className="mr-2 h-4 w-4" />Recommendations</CommandItem>
+          <CommandItem onSelect={() => go("/diagnostics")}><Stethoscope className="mr-2 h-4 w-4" />Diagnostics</CommandItem>
           <CommandItem onSelect={() => go("/coach")}><Sparkles className="mr-2 h-4 w-4" />AI Coach</CommandItem>
+          <CommandItem onSelect={() => go("/sessions")}><ClipboardCheck className="mr-2 h-4 w-4" />Sessions & Assessments</CommandItem>
+          <CommandItem onSelect={() => go("/data-safety")}><ShieldCheck className="mr-2 h-4 w-4" />Data Safety</CommandItem>
         </CommandGroup>
         {subjects.length > 0 && (
           <>

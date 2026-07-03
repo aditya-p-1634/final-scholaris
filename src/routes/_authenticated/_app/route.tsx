@@ -47,7 +47,7 @@ function AppGate() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen grid place-items-center bg-background text-muted-foreground">
+      <div className="min-h-dvh grid place-items-center bg-background text-muted-foreground">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           <div className="text-[11px] uppercase tracking-[0.18em] font-semibold">
