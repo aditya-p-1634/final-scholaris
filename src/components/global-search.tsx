@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Atom, Swords, Target, LayoutDashboard, Brain, TrendingUp, ShieldAlert, Sparkles } from "lucide-react";
+import { Atom, Swords, Target, LayoutDashboard, Brain, TrendingUp, ShieldAlert, Sparkles, Sunrise, Timer, Network, Lightbulb, Stethoscope, ClipboardCheck, ShieldCheck } from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
