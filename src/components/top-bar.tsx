@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Moon, Sun, Command, Bell, LogOut, User } from "lucide-react";
+import { Search, Moon, Sun, Command, LogOut, User } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTheme } from "./theme-provider";
 import { GlobalSearch } from "./global-search";
