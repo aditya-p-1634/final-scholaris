@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Atom, Swords, Target, LayoutDashboard, Brain, TrendingUp, ShieldAlert, Sparkles, Sunrise, Timer, Network, Lightbulb, Stethoscope, ClipboardCheck, ShieldCheck } from "lucide-react";
+import { Atom, Swords, Target, LayoutDashboard, Brain, TrendingUp, ShieldAlert, Sparkles, Sunrise, Timer, Network, Lightbulb, Stethoscope, ClipboardCheck, ShieldCheck, Settings } from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
@@ -54,6 +54,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
           <CommandItem onSelect={() => go("/coach")}><Sparkles className="mr-2 h-4 w-4" />AI Coach</CommandItem>
           <CommandItem onSelect={() => go("/sessions")}><ClipboardCheck className="mr-2 h-4 w-4" />Sessions & Assessments</CommandItem>
           <CommandItem onSelect={() => go("/data-safety")}><ShieldCheck className="mr-2 h-4 w-4" />Data Safety</CommandItem>
+          <CommandItem onSelect={() => go("/settings")}><Settings className="mr-2 h-4 w-4" />Settings</CommandItem>
         </CommandGroup>
         {subjects.length > 0 && (
           <>
