@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Swords, Atom, Target, Brain, TrendingUp,
   ShieldAlert, Sparkles, ClipboardCheck, GraduationCap, Lightbulb, Stethoscope, Timer, Sunrise, Network, ShieldCheck,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,6 +50,7 @@ const sections = [
       { to: "/coach", label: "AI Coach", icon: Sparkles },
       { to: "/sessions", label: "Sessions & Assessments", icon: ClipboardCheck },
       { to: "/data-safety", label: "Data Safety", icon: ShieldCheck },
+      { to: "/settings", label: "Settings", icon: Settings },
     ],
   },
 ];

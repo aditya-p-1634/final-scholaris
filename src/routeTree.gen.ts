@@ -17,6 +17,7 @@ import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticated/_app/route'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/_app/index'
 import { Route as AuthenticatedAppTodayRouteImport } from './routes/_authenticated/_app/today'
+import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/_app/settings'
 import { Route as AuthenticatedAppSessionsRouteImport } from './routes/_authenticated/_app/sessions'
 import { Route as AuthenticatedAppSessionRouteImport } from './routes/_authenticated/_app/session'
 import { Route as AuthenticatedAppRoiRouteImport } from './routes/_authenticated/_app/roi'
@@ -71,6 +72,12 @@ const AuthenticatedAppTodayRoute = AuthenticatedAppTodayRouteImport.update({
   path: '/today',
   getParentRoute: () => AuthenticatedAppRouteRoute,
 } as any)
+const AuthenticatedAppSettingsRoute =
+  AuthenticatedAppSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAppRouteRoute,
+  } as any)
 const AuthenticatedAppSessionsRoute =
   AuthenticatedAppSessionsRouteImport.update({
     id: '/sessions',
@@ -175,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/roi': typeof AuthenticatedAppRoiRoute
   '/session': typeof AuthenticatedAppSessionRoute
   '/sessions': typeof AuthenticatedAppSessionsRoute
+  '/settings': typeof AuthenticatedAppSettingsRoute
   '/today': typeof AuthenticatedAppTodayRoute
   '/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
   '/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
@@ -198,6 +206,7 @@ export interface FileRoutesByTo {
   '/roi': typeof AuthenticatedAppRoiRoute
   '/session': typeof AuthenticatedAppSessionRoute
   '/sessions': typeof AuthenticatedAppSessionsRoute
+  '/settings': typeof AuthenticatedAppSettingsRoute
   '/today': typeof AuthenticatedAppTodayRoute
   '/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
   '/subjects/$id': typeof AuthenticatedAppSubjectsIdRoute
@@ -223,6 +232,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/roi': typeof AuthenticatedAppRoiRoute
   '/_authenticated/_app/session': typeof AuthenticatedAppSessionRoute
   '/_authenticated/_app/sessions': typeof AuthenticatedAppSessionsRoute
+  '/_authenticated/_app/settings': typeof AuthenticatedAppSettingsRoute
   '/_authenticated/_app/today': typeof AuthenticatedAppTodayRoute
   '/_authenticated/_app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/_app/concepts/$id': typeof AuthenticatedAppConceptsIdRoute
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/roi'
     | '/session'
     | '/sessions'
+    | '/settings'
     | '/today'
     | '/concepts/$id'
     | '/subjects/$id'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/roi'
     | '/session'
     | '/sessions'
+    | '/settings'
     | '/today'
     | '/concepts/$id'
     | '/subjects/$id'
@@ -296,6 +308,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/roi'
     | '/_authenticated/_app/session'
     | '/_authenticated/_app/sessions'
+    | '/_authenticated/_app/settings'
     | '/_authenticated/_app/today'
     | '/_authenticated/_app/'
     | '/_authenticated/_app/concepts/$id'
@@ -364,6 +377,13 @@ declare module '@tanstack/react-router' {
       path: '/today'
       fullPath: '/today'
       preLoaderRoute: typeof AuthenticatedAppTodayRouteImport
+      parentRoute: typeof AuthenticatedAppRouteRoute
+    }
+    '/_authenticated/_app/settings': {
+      id: '/_authenticated/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
       parentRoute: typeof AuthenticatedAppRouteRoute
     }
     '/_authenticated/_app/sessions': {
@@ -502,6 +522,7 @@ interface AuthenticatedAppRouteRouteChildren {
   AuthenticatedAppRoiRoute: typeof AuthenticatedAppRoiRoute
   AuthenticatedAppSessionRoute: typeof AuthenticatedAppSessionRoute
   AuthenticatedAppSessionsRoute: typeof AuthenticatedAppSessionsRoute
+  AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
   AuthenticatedAppTodayRoute: typeof AuthenticatedAppTodayRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppSubjectsIdRoute: typeof AuthenticatedAppSubjectsIdRoute
@@ -521,6 +542,7 @@ const AuthenticatedAppRouteRouteChildren: AuthenticatedAppRouteRouteChildren = {
   AuthenticatedAppRoiRoute: AuthenticatedAppRoiRoute,
   AuthenticatedAppSessionRoute: AuthenticatedAppSessionRoute,
   AuthenticatedAppSessionsRoute: AuthenticatedAppSessionsRoute,
+  AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
   AuthenticatedAppTodayRoute: AuthenticatedAppTodayRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppSubjectsIdRoute: AuthenticatedAppSubjectsIdRoute,
