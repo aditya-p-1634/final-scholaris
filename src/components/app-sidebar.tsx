@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Swords, Atom, Target, Brain, TrendingUp,
   ShieldAlert, Sparkles, ClipboardCheck, GraduationCap, Lightbulb, Stethoscope, Timer, Sunrise, Network, ShieldCheck,
-  Settings,
+  Settings, FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,6 +51,7 @@ const sections = [
       { to: "/sessions", label: "Sessions & Assessments", icon: ClipboardCheck },
       { to: "/data-safety", label: "Data Safety", icon: ShieldCheck },
       { to: "/settings", label: "Settings", icon: Settings },
+      ...(DEV_MODE ? [{ to: "/verification", label: "Verification", icon: FlaskConical }] : []),
     ],
   },
 ];
