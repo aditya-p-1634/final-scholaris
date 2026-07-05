@@ -640,8 +640,9 @@ function buildGroups(ws: SyntheticWorkspace): GroupDef[] {
             const base = deriveMomentum(core);
             const id = deriveIdentity(core, d, acc, base, rec);
             const mv2 = deriveMomentumV2(base, d, acc, proc);
+            const m = Number.isFinite(mv2.unifiedScore) ? mv2.unifiedScore : "n/a";
             return ok(
-              `Discipline ${d.score} (${d.tier}) · Momentum ${mv2.unifiedScore} · Identity ${id.title}`,
+              `Discipline ${d.score} (${d.tier}) · Momentum ${m} · Identity ${id.title}`,
             );
           },
         },
