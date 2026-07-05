@@ -526,7 +526,7 @@ function buildGroups(ws: SyntheticWorkspace): GroupDef[] {
           id: "cmd-status", name: "Academic status computed",
           fn: () => {
             const s = deriveAcademicStatus(store());
-            return ok(`Status: ${s.headline}`);
+            return ok(`Mastery ${s.overallMastery}% · Risk ${s.overallRisk}% · ${s.activeSubjects} subjects`);
           },
         },
       ],
