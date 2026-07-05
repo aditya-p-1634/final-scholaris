@@ -492,7 +492,7 @@ function buildGroups(ws: SyntheticWorkspace): GroupDef[] {
             const twin = deriveDigitalTwin(core, model);
             deriveAssessmentForecasts(core, model);
             deriveMissionForecasts(core, model);
-            return ok(`${f.length} forecasts · twin now: ${twin.currentSelf.masteryAvg}% mastery`);
+            return ok(`${f.length} forecasts · twin now: ${Math.round(twin.currentSelf.mastery)}% mastery`);
           },
         },
         {
