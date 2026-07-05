@@ -772,23 +772,6 @@ function buildGroups(ws: SyntheticWorkspace): GroupDef[] {
   ];
 }
 
-// deriveMomentum lives inside intelligence store but is only exported through deriveMomentumV2's helper.
-// Provide a lightweight adapter that computes the base momentum from the current core state.
-import { deriveMasteryTrend } from "./intelligence";
-function deriveMomentumV2Base(core: ReturnType<typeof getCoreState>) {
-  // Base momentum = 60 + trend delta (bounded), matching the intelligence engine baseline.
-  const trend = deriveMasteryTrend(useIntelligenceStore.getState());
-  const delta = trend.length >= 2 ? trend[trend.length - 1].mastery - trend[0].mastery : 0;
-  const score = Math.max(0, Math.min(100, 60 + delta * 1.5));
-  return {
-    score,
-    trend: (delta > 2 ? "improving" : delta < -2 ? "declining" : "stable") as "improving" | "declining" | "stable",
-    unifiedScore: score,
-    state: score >= 75 ? "flow" : score >= 55 ? "steady" : "cold",
-    signals: [] as string[],
-    _core: core,
-  } as unknown as Parameters<typeof deriveIdentity>[3];
-}
 
 // ============================================================
 // Runner
