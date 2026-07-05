@@ -280,8 +280,8 @@ export function generateSyntheticWorkspace(seed = Date.now()): SyntheticWorkspac
 // Test primitives
 // ============================================================
 
-type TestFn = () => Promise<Omit<TestResult, "id" | "group" | "durationMs">>
-              | Omit<TestResult, "id" | "group" | "durationMs">;
+interface TestOutcome { status: VerificationStatus; message: string; detail?: string; }
+type TestFn = () => Promise<TestOutcome> | TestOutcome;
 
 interface TestDef { id: string; name: string; fn: TestFn; }
 interface GroupDef { name: string; tests: TestDef[]; }
