@@ -34,6 +34,7 @@ import {
   deriveAccountability,
   deriveProcrastination,
 } from "./academic-system";
+import { deriveMomentum } from "./execution";
 import {
   deriveStudentModel,
   derivePersonalMemoryModel,
