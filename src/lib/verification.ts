@@ -637,8 +637,9 @@ function buildGroups(ws: SyntheticWorkspace): GroupDef[] {
             const acc = deriveAccountability(core);
             const rec = deriveRecovery(core);
             const proc = deriveProcrastination(core, rec);
-            const id = deriveIdentity(core, d, acc, deriveMomentumV2Base(core), rec);
-            const mv2 = deriveMomentumV2(deriveMomentumV2Base(core), d, acc, proc);
+            const base = deriveMomentum(core);
+            const id = deriveIdentity(core, d, acc, base, rec);
+            const mv2 = deriveMomentumV2(base, d, acc, proc);
             return ok(
               `Discipline ${d.score} (${d.tier}) · Momentum ${mv2.unifiedScore} · Identity ${id.title}`,
             );
