@@ -51,6 +51,7 @@ const sections = [
       { to: "/sessions", label: "Sessions & Assessments", icon: ClipboardCheck },
       { to: "/data-safety", label: "Data Safety", icon: ShieldCheck },
       { to: "/settings", label: "Settings", icon: Settings },
+      ...(DEV_MODE ? [{ to: "/verification", label: "Verification", icon: FlaskConical }] : []),
     ],
   },
 ];
