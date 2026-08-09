@@ -50,6 +50,7 @@ function dateLabelFromTs(ts: number): string {
 }
 
 export async function loadWorkspace(userId: string): Promise<WorkspacePayload> {
+  void flushOfflineQueue();
   const [subjectsR, conceptsR, prereqR, sessionsR, assessmentsR, aqR, missionsR] =
     await Promise.all([
       supabase.from("subjects").select("*").eq("user_id", userId).order("rank"),
@@ -227,7 +228,170 @@ type ConceptUpdate = {
   assessment_correct?: number;
 };
 
+// ---------------- Offline Write Queue (Production Retry Layer) ----------------
+
+export const OFFLINE_QUEUE_KEY = "scholaris:offline_write_queue_v1";
+
+export type QueuedOperation =
+  | { type: "concept_patch"; id: string; userId: string; conceptId: string; patch: Partial<ConceptCore>; timestamp: number }
+  | { type: "session"; id: string; userId: string; entry: SessionLogEntry; timestamp: number }
+  | { type: "assessment"; id: string; userId: string; entry: AssessmentLogEntry; timestamp: number }
+  | { type: "mission_completion"; id: string; userId: string; mission: DerivedMission; timestamp: number };
+
+export function loadOfflineQueue(): QueuedOperation[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveOfflineQueue(queue: QueuedOperation[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  } catch {
+    // Quota or storage restrictions — ignore silently
+  }
+}
+
+export function enqueueOfflineOp(op: QueuedOperation): void {
+  if (DEV_MODE || typeof window === "undefined") return;
+  const queue = loadOfflineQueue();
+  if (op.type === "concept_patch") {
+    const idx = queue.findIndex(
+      (x) => x.type === "concept_patch" && x.userId === op.userId && x.conceptId === op.conceptId,
+    );
+    if (idx >= 0) {
+      const existing = queue[idx] as Extract<QueuedOperation, { type: "concept_patch" }>;
+      queue[idx] = { ...existing, patch: { ...existing.patch, ...op.patch }, timestamp: Date.now() };
+    } else {
+      queue.push(op);
+    }
+  } else {
+    if (!queue.some((x) => x.id === op.id)) {
+      queue.push(op);
+    }
+  }
+  saveOfflineQueue(queue);
+}
+
+let isFlushing = false;
+
+export async function flushOfflineQueue(): Promise<void> {
+  if (isFlushing || DEV_MODE || typeof window === "undefined" || !navigator.onLine) return;
+  isFlushing = true;
+  try {
+    const userId = await currentUserId();
+    if (!userId) return;
+
+    const queue = loadOfflineQueue();
+    if (queue.length === 0) return;
+
+    const remaining: QueuedOperation[] = [];
+    for (const op of queue) {
+      // Process ONLY operations belonging to the currently authenticated user.
+      // Operations belonging to other accounts are safely preserved for when that account logs back in.
+      if (op.userId !== userId) {
+        remaining.push(op);
+        continue;
+      }
+      try {
+        if (op.type === "concept_patch") {
+          const row: ConceptUpdate = {};
+          if (op.patch.mastery !== undefined) row.mastery = op.patch.mastery;
+          if (op.patch.memoryStrength !== undefined) row.memory_strength = op.patch.memoryStrength;
+          if (op.patch.reviewCount !== undefined) row.review_count = op.patch.reviewCount;
+          if (op.patch.daysSinceReview !== undefined) {
+            row.last_reviewed_at = new Date(Date.now() - op.patch.daysSinceReview * 86400000).toISOString();
+          }
+          if (op.patch.successfulRecalls !== undefined) row.successful_recalls = op.patch.successfulRecalls;
+          if (op.patch.failedRecalls !== undefined) row.failed_recalls = op.patch.failedRecalls;
+          if (op.patch.assessmentAttempts !== undefined) row.assessment_attempts = op.patch.assessmentAttempts;
+          if (op.patch.assessmentCorrect !== undefined) row.assessment_correct = op.patch.assessmentCorrect;
+          if (Object.keys(row).length > 0) {
+            const { error } = await supabase.from("concepts").update(row).eq("id", op.conceptId).eq("user_id", userId);
+            if (error) throw error;
+          }
+        } else if (op.type === "session") {
+          const { error } = await supabase.from("sessions").insert({
+            user_id: userId,
+            subject_id: op.entry.subjectId || null,
+            concept_id: op.entry.conceptId || null,
+            duration_min: op.entry.duration,
+            kind: op.entry.type,
+            started_at: new Date(op.entry.timestamp).toISOString(),
+          });
+          if (error) throw error;
+        } else if (op.type === "assessment") {
+          const { data, error } = await supabase
+            .from("assessments")
+            .insert({
+              user_id: userId,
+              subject_id: op.entry.subjectId || null,
+              kind: "quiz",
+              score: op.entry.actual,
+              taken_at: new Date(op.entry.timestamp).toISOString(),
+              notes: op.entry.title,
+            })
+            .select("id")
+            .single();
+          if (error || !data) throw error || new Error("Failed to sync assessment");
+          if (op.entry.questions?.length) {
+            const { error: qErr } = await supabase.from("assessment_questions").insert(
+              op.entry.questions.map((q) => ({
+                assessment_id: data.id,
+                user_id: userId,
+                concept_id: q.conceptId,
+                correct: q.correct,
+                difficulty: (q.difficulty ?? 5) / 10,
+              })),
+            );
+            if (qErr) throw qErr;
+          }
+        } else if (op.type === "mission_completion") {
+          const id = stringToUuid(`${userId}:${op.mission.id}`);
+          const { error } = await supabase.from("missions").upsert(
+            {
+              id,
+              user_id: userId,
+              subject_id: op.mission.subjectId || null,
+              concept_id: op.mission.conceptIds[0] || null,
+              type: op.mission.type,
+              priority: op.mission.priority,
+              title: op.mission.title,
+              reason: op.mission.reason,
+              roi_score: op.mission.roiScore,
+              estimated_minutes: op.mission.estimatedMinutes,
+              completed: true,
+              completed_at: new Date().toISOString(),
+            },
+            { onConflict: "id" },
+          );
+          if (error) throw error;
+        }
+      } catch {
+        remaining.push(op);
+      }
+    }
+    saveOfflineQueue(remaining);
+  } finally {
+    isFlushing = false;
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    void flushOfflineQueue();
+  });
+}
+
 export async function persistConceptPatch(conceptId: string, patch: Partial<ConceptCore>) {
+  if (DEV_MODE) return;
   const userId = await currentUserId();
   if (!userId) return;
   const row: ConceptUpdate = {};
@@ -242,7 +406,13 @@ export async function persistConceptPatch(conceptId: string, patch: Partial<Conc
   if (patch.assessmentAttempts !== undefined) row.assessment_attempts = patch.assessmentAttempts;
   if (patch.assessmentCorrect !== undefined) row.assessment_correct = patch.assessmentCorrect;
   if (Object.keys(row).length === 0) return;
-  await supabase.from("concepts").update(row).eq("id", conceptId).eq("user_id", userId);
+
+  try {
+    const { error } = await supabase.from("concepts").update(row).eq("id", conceptId).eq("user_id", userId);
+    if (error) throw error;
+  } catch {
+    enqueueOfflineOp({ type: "concept_patch", id: `cp-${conceptId}-${Date.now()}`, userId, conceptId, patch, timestamp: Date.now() });
+  }
 }
 
 export async function persistConceptsBatch(patches: Record<string, Partial<ConceptCore>>) {
@@ -383,45 +553,59 @@ export async function persistPrerequisites(conceptId: string, prerequisiteIds: s
 }
 
 export async function persistSession(entry: SessionLogEntry) {
+  if (DEV_MODE) return;
   const userId = await currentUserId();
   if (!userId) return;
-  await supabase.from("sessions").insert({
-    user_id: userId,
-    subject_id: entry.subjectId || null,
-    concept_id: entry.conceptId || null,
-    duration_min: entry.duration,
-    kind: entry.type,
-    started_at: new Date(entry.timestamp).toISOString(),
-  });
+  try {
+    const { error } = await supabase.from("sessions").insert({
+      user_id: userId,
+      subject_id: entry.subjectId || null,
+      concept_id: entry.conceptId || null,
+      duration_min: entry.duration,
+      kind: entry.type,
+      started_at: new Date(entry.timestamp).toISOString(),
+    });
+    if (error) throw error;
+  } catch {
+    enqueueOfflineOp({ type: "session", id: `s-${entry.id || Date.now()}`, userId, entry, timestamp: Date.now() });
+  }
 }
 
 export async function persistAssessment(
   entry: AssessmentLogEntry,
 ): Promise<void> {
+  if (DEV_MODE) return;
   const userId = await currentUserId();
   if (!userId) return;
-  const { data } = await supabase
-    .from("assessments")
-    .insert({
-      user_id: userId,
-      subject_id: entry.subjectId || null,
-      kind: "quiz",
-      score: entry.actual,
-      taken_at: new Date(entry.timestamp).toISOString(),
-      notes: entry.title,
-    })
-    .select("id")
-    .single();
-  if (!data || !entry.questions?.length) return;
-  await supabase.from("assessment_questions").insert(
-    entry.questions.map((q) => ({
-      assessment_id: data.id,
-      user_id: userId,
-      concept_id: q.conceptId,
-      correct: q.correct,
-      difficulty: (q.difficulty ?? 5) / 10,
-    })),
-  );
+  try {
+    const { data, error } = await supabase
+      .from("assessments")
+      .insert({
+        user_id: userId,
+        subject_id: entry.subjectId || null,
+        kind: "quiz",
+        score: entry.actual,
+        taken_at: new Date(entry.timestamp).toISOString(),
+        notes: entry.title,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw error || new Error("Failed to insert assessment");
+    if (entry.questions?.length) {
+      const { error: qErr } = await supabase.from("assessment_questions").insert(
+        entry.questions.map((q) => ({
+          assessment_id: data.id,
+          user_id: userId,
+          concept_id: q.conceptId,
+          correct: q.correct,
+          difficulty: (q.difficulty ?? 5) / 10,
+        })),
+      );
+      if (qErr) throw qErr;
+    }
+  } catch {
+    enqueueOfflineOp({ type: "assessment", id: `a-${entry.id || Date.now()}`, userId, entry, timestamp: Date.now() });
+  }
 }
 
 // Deterministic UUID from any string — used to map engine mission ids
@@ -443,26 +627,32 @@ function stringToUuid(input: string): string {
 }
 
 export async function persistMissionCompletion(mission: DerivedMission) {
+  if (DEV_MODE) return;
   const userId = await currentUserId();
   if (!userId) return;
   const id = stringToUuid(`${userId}:${mission.id}`);
-  await supabase.from("missions").upsert(
-    {
-      id,
-      user_id: userId,
-      subject_id: mission.subjectId || null,
-      concept_id: mission.conceptIds[0] || null,
-      type: mission.type,
-      priority: mission.priority,
-      title: mission.title,
-      reason: mission.reason,
-      roi_score: mission.roiScore,
-      estimated_minutes: mission.estimatedMinutes,
-      completed: true,
-      completed_at: new Date().toISOString(),
-    },
-    { onConflict: "id" },
-  );
+  try {
+    const { error } = await supabase.from("missions").upsert(
+      {
+        id,
+        user_id: userId,
+        subject_id: mission.subjectId || null,
+        concept_id: mission.conceptIds[0] || null,
+        type: mission.type,
+        priority: mission.priority,
+        title: mission.title,
+        reason: mission.reason,
+        roi_score: mission.roiScore,
+        estimated_minutes: mission.estimatedMinutes,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+    if (error) throw error;
+  } catch {
+    enqueueOfflineOp({ type: "mission_completion", id: `m-${mission.id}`, userId, mission, timestamp: Date.now() });
+  }
 }
 
 // ---------------- Onboarding seed ----------------

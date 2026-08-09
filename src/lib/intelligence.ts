@@ -28,6 +28,7 @@ import {
   persistPrerequisites,
   type WorkspacePayload,
 } from "./persistence";
+import { DEV_MODE, saveDevWorkspace } from "./dev-mode";
 
 // ---------------- Types ----------------
 
@@ -599,8 +600,24 @@ export const useIntelligenceStore = create<State>((set, get) => ({
       conceptsById: concepts,
       sessions: s.sessions.filter((x) => x.subjectId !== id),
       assessments: s.assessments.filter((x) => x.subjectId !== id),
+      completedMissionIds: s.completedMissionIds.filter(
+        (mid) => !mid.includes(id) && Array.from(removedConceptIds).every((cid) => !mid.includes(cid)),
+      ),
     }));
-    void deleteSubject(id);
+    if (DEV_MODE) {
+      const state = get();
+      saveDevWorkspace({
+        subjectsById: state.subjectsById,
+        conceptsById: state.conceptsById,
+        prereqs: PREREQUISITES,
+        sessions: state.sessions,
+        assessments: state.assessments,
+        completedMissionIds: state.completedMissionIds,
+        hasWorkspace: Object.keys(state.subjectsById).length > 0,
+      });
+    } else {
+      void deleteSubject(id);
+    }
   },
 
   addConcept: async (meta) => {
