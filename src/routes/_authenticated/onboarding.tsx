@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, GraduationCap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { DEV_MODE } from "@/lib/dev-mode";
 import { seedWorkspace, loadProfile } from "@/lib/persistence";
 import { toast } from "sonner";
 
@@ -67,6 +68,7 @@ function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (DEV_MODE) return;
     (async () => {
       const { data } = await supabase.auth.getUser();
       if (!data.user) {

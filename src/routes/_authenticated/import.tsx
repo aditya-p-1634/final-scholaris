@@ -8,6 +8,7 @@ import {
   CheckCircle2, GitBranch, Brain, BookOpen, AlertTriangle, ScanText,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DEV_MODE } from "@/lib/dev-mode";
 import { supabase } from "@/integrations/supabase/client";
 import { extractCurriculum } from "@/lib/curriculum.functions";
 import {
@@ -51,6 +52,7 @@ function ImportCenter() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (DEV_MODE) return;
     (async () => {
       const { data } = await supabase.auth.getUser();
       if (!data.user) navigate({ to: "/auth", replace: true });

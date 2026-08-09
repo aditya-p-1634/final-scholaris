@@ -39,3 +39,46 @@ export function buildDevWorkspace(): WorkspacePayload {
     hasWorkspace: false,
   };
 }
+
+const DEV_STORAGE_KEY = "scholaris:dev_workspace_v1";
+
+export function saveDevWorkspace(payload: WorkspacePayload): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota or unavailable */
+  }
+}
+
+export function loadDevWorkspace(): WorkspacePayload | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(DEV_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || !parsed.subjectsById) {
+      return null;
+    }
+    return {
+      subjectsById: parsed.subjectsById ?? {},
+      conceptsById: parsed.conceptsById ?? {},
+      prereqs: parsed.prereqs ?? {},
+      sessions: parsed.sessions ?? [],
+      assessments: parsed.assessments ?? [],
+      completedMissionIds: parsed.completedMissionIds ?? [],
+      hasWorkspace: Boolean(parsed.hasWorkspace ?? Object.keys(parsed.subjectsById ?? {}).length > 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearDevWorkspace(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(DEV_STORAGE_KEY);
+  } catch {
+    /* noop */
+  }
+}

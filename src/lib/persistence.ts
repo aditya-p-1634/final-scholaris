@@ -3,7 +3,8 @@
 // this module only moves raw concept-level state and activity logs.
 
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_ASSESSMENT_WEIGHTS } from "./intelligence";
+import { DEFAULT_ASSESSMENT_WEIGHTS, useIntelligenceStore } from "./intelligence";
+import { DEV_MODE, saveDevWorkspace } from "./dev-mode";
 import type {
   ConceptCore,
   SubjectMeta,
@@ -484,7 +485,65 @@ const PALETTE = [
 
 export async function seedWorkspace(input: OnboardingInput): Promise<void> {
   const userId = await currentUserId();
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) {
+    if (DEV_MODE) {
+      const subjectsById: Record<string, SubjectMeta> = {};
+      const conceptsById: Record<string, ConceptCore> = {};
+
+      for (let i = 0; i < input.subjects.length; i++) {
+        const s = input.subjects[i];
+        const subjectId = `dev-sub-${i + 1}`;
+        subjectsById[subjectId] = {
+          id: subjectId,
+          name: s.name,
+          code: s.code ?? "",
+          color: s.color ?? PALETTE[i % PALETTE.length],
+          hoursThisWeek: 0,
+          baselineMastery: 50,
+          examWeight: 0.5,
+          strategicValue: 70,
+          credits: 3,
+          assessmentWeights: { ...DEFAULT_ASSESSMENT_WEIGHTS },
+        };
+
+        s.concepts.forEach((cName, idx) => {
+          const cid = `dev-c-${i + 1}-${idx + 1}`;
+          conceptsById[cid] = {
+            id: cid,
+            name: cName,
+            subjectId,
+            subjectName: s.name,
+            topic: "General",
+            mastery: 40 + ((idx * 7) % 25),
+            memoryStrength: 45 + ((idx * 11) % 30),
+            importance: 6 + (idx % 4),
+            decayRate: 0.1,
+            daysSinceReview: 0,
+            reviewCount: 0,
+            successfulRecalls: 0,
+            failedRecalls: 0,
+            assessmentAttempts: 0,
+            assessmentCorrect: 0,
+          };
+        });
+      }
+
+      const payload: WorkspacePayload = {
+        subjectsById,
+        conceptsById,
+        prereqs: {},
+        sessions: [],
+        assessments: [],
+        completedMissionIds: [],
+        hasWorkspace: Object.keys(subjectsById).length > 0,
+      };
+
+      useIntelligenceStore.getState().hydrate(payload);
+      saveDevWorkspace(payload);
+      return;
+    }
+    throw new Error("Not authenticated");
+  }
 
   await supabase.from("profiles").upsert(
     {

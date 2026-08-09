@@ -4,6 +4,9 @@
 // that seeds Mastery / Memory / Risk / Momentum / Missions instead of zero.
 
 import { supabase } from "@/integrations/supabase/client";
+import { DEV_MODE, saveDevWorkspace } from "./dev-mode";
+import { useIntelligenceStore, type ConceptCore, type SubjectMeta } from "./intelligence";
+import type { WorkspacePayload } from "./persistence";
 import type {
   CurriculumDraft,
   ImportSubject,
@@ -58,24 +61,24 @@ function conceptSeed(state: EffectiveState, idx: number) {
       mastery: 80 + (idx % 3) * 3,
       memory_strength: 76 + (idx % 4) * 2,
       review_count: 4,
-      successful_recalls: 5,
-      failed_recalls: 1,
-      last_reviewed_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+      successful_recalls: 4,
+      failed_recalls: 0,
+      last_reviewed_at: new Date(Date.now() - (1 + (idx % 3)) * 86400000).toISOString(),
     };
   }
   if (state === "partial") {
     return {
-      mastery: 46 + (idx % 4) * 3,
-      memory_strength: 44 + (idx % 4) * 3,
+      mastery: 48 + (idx % 4) * 4,
+      memory_strength: 50 + (idx % 3) * 3,
       review_count: 2,
       successful_recalls: 2,
       failed_recalls: 1,
-      last_reviewed_at: new Date(Date.now() - 7 * 86400000).toISOString(),
+      last_reviewed_at: new Date(Date.now() - (3 + (idx % 4)) * 86400000).toISOString(),
     };
   }
   return {
-    mastery: 12 + (idx % 3) * 3,
-    memory_strength: 18 + (idx % 3) * 3,
+    mastery: 12 + (idx % 3) * 4,
+    memory_strength: 20 + (idx % 2) * 5,
     review_count: 0,
     successful_recalls: 0,
     failed_recalls: 0,
@@ -101,7 +104,119 @@ export async function importCurriculum(
 ): Promise<ImportSummary> {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id;
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) {
+    if (DEV_MODE) {
+      const summary: ImportSummary = {
+        subjects: 0,
+        units: 0,
+        topics: 0,
+        concepts: 0,
+        prerequisites: 0,
+        creditsAssigned: 0,
+        progressInitialized: 0,
+      };
+      const subjectsById: Record<string, SubjectMeta> = {};
+      const conceptsById: Record<string, ConceptCore> = {};
+      const prereqs: Record<string, string[]> = {};
+      const conceptIdByName = new Map<string, string>();
+
+      for (let si = 0; si < draft.subjects.length; si++) {
+        const s: ImportSubject = draft.subjects[si];
+        const subjectId = `dev-sub-${si + 1}`;
+        subjectsById[subjectId] = {
+          id: subjectId,
+          name: s.name,
+          code: s.code ?? "",
+          color: PALETTE[si % PALETTE.length],
+          hoursThisWeek: 0,
+          baselineMastery: baselineFor(s.progress),
+          examWeight: 0.5,
+          strategicValue: 70,
+          credits: s.credits,
+          assessmentWeights: { ...s.assessmentWeights },
+        };
+        summary.subjects += 1;
+        summary.creditsAssigned += s.credits;
+
+        const pending: PendingConcept[] = [];
+        for (let ui = 0; ui < s.units.length; ui++) {
+          const u = s.units[ui];
+          const state = effectiveState(s.progress, u.coverage);
+          summary.units += 1;
+          const topicId = `dev-topic-${si + 1}-${ui + 1}`;
+          if (u.topics.length === 0) {
+            pending.push({ name: u.name, state, topicId });
+          } else {
+            for (const t of u.topics) {
+              summary.topics += 1;
+              if (t.concepts.length === 0) {
+                pending.push({ name: t.name, state, topicId });
+              } else {
+                for (const c of t.concepts) {
+                  pending.push({ name: c.name, state, topicId });
+                }
+              }
+            }
+          }
+        }
+        if (s.units.length === 0) {
+          pending.push({ name: s.name, state: effectiveState(s.progress, "not_covered"), topicId: null });
+        }
+
+        if (pending.length) {
+          pending.forEach((p, idx) => {
+            const seed = conceptSeed(p.state, idx);
+            if (p.state !== "fresh") summary.progressInitialized += 1;
+            const cid = `dev-c-${si + 1}-${idx + 1}`;
+            conceptsById[cid] = {
+              id: cid,
+              name: p.name,
+              subjectId,
+              subjectName: s.name,
+              topic: p.name,
+              importance: 6 + (idx % 4),
+              decayRate: 0.1,
+              daysSinceReview: 0,
+              reviewCount: seed.review_count,
+              successfulRecalls: seed.successful_recalls,
+              failedRecalls: seed.failed_recalls,
+              assessmentAttempts: 0,
+              assessmentCorrect: 0,
+              mastery: seed.mastery,
+              memoryStrength: seed.memory_strength,
+            };
+            summary.concepts += 1;
+            const key = p.name.toLowerCase();
+            if (!conceptIdByName.has(key)) conceptIdByName.set(key, cid);
+          });
+        }
+      }
+
+      for (const p of draft.prerequisites) {
+        const fromId = conceptIdByName.get(p.from.toLowerCase());
+        const toId = conceptIdByName.get(p.to.toLowerCase());
+        if (!fromId || !toId || fromId === toId) continue;
+        (prereqs[toId] ??= []).push(fromId);
+        summary.prerequisites += 1;
+      }
+
+      const payload: WorkspacePayload = {
+        subjectsById,
+        conceptsById,
+        prereqs,
+        sessions: [],
+        assessments: [],
+        completedMissionIds: [],
+        hasWorkspace: Object.keys(subjectsById).length > 0,
+      };
+
+      useIntelligenceStore.getState().hydrate(payload);
+      saveDevWorkspace(payload);
+
+      return summary;
+    }
+    throw new Error("Not authenticated");
+  }
 
   const summary: ImportSummary = {
     subjects: 0,

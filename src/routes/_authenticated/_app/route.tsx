@@ -2,10 +2,10 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { UniversalCapture } from "@/components/universal-capture";
-import { useIntelligenceActions } from "@/lib/intelligence";
+import { useIntelligenceActions, useIntelligenceStore } from "@/lib/intelligence";
 import { loadProfile, loadWorkspace } from "@/lib/persistence";
 import { supabase } from "@/integrations/supabase/client";
-import { DEV_MODE, buildDevWorkspace } from "@/lib/dev-mode";
+import { DEV_MODE, buildDevWorkspace, loadDevWorkspace } from "@/lib/dev-mode";
 
 export const Route = createFileRoute("/_authenticated/_app")({
   component: AppGate,
@@ -20,7 +20,15 @@ function AppGate() {
     let cancelled = false;
     (async () => {
       if (DEV_MODE) {
-        hydrate(buildDevWorkspace());
+        const store = useIntelligenceStore.getState();
+        if (Object.keys(store.subjectsById).length === 0) {
+          const saved = loadDevWorkspace();
+          if (saved && Object.keys(saved.subjectsById).length > 0) {
+            hydrate(saved);
+          } else {
+            hydrate(buildDevWorkspace());
+          }
+        }
         if (!cancelled) setReady(true);
         return;
       }
