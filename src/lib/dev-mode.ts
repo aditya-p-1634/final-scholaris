@@ -13,7 +13,10 @@
 
 import type { WorkspacePayload } from "./persistence";
 
-export const DEV_MODE = true;
+export const DEV_MODE = Boolean(
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.DEV) ||
+    (typeof process !== "undefined" && process.env && process.env.NODE_ENV === "development"),
+);
 
 export const DEV_USER = {
   id: "00000000-0000-0000-0000-000000000dev",
